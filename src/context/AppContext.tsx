@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, DepositRequest, Order, TopUpProduct, PaymentMethodType } from '../types';
+import { User, DepositRequest, Order, OrderStatus, TopUpProduct, PaymentMethodType } from '../types';
 import { INITIAL_USER, ADMIN_USER, INITIAL_PRODUCTS, INITIAL_DEPOSITS, INITIAL_ORDERS } from '../data/initialData';
 
 export type ActiveTab = 'home' | 'deposit' | 'orders' | 'admin';
@@ -19,6 +19,9 @@ interface AppContextType {
   products: TopUpProduct[];
   deposits: DepositRequest[];
   orders: Order[];
+  activeTrackingOrderId: string | null;
+  setActiveTrackingOrderId: (id: string | null) => void;
+  advanceOrderStep: (orderId: string) => void;
   toasts: ToastInfo[];
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   
@@ -37,7 +40,7 @@ interface AppContextType {
   // Admin actions
   approveDeposit: (depositId: string) => void;
   rejectDeposit: (depositId: string, reason: string) => void;
-  updateOrderStatus: (orderId: string, status: 'delivered' | 'failed', notes?: string) => void;
+  updateOrderStatus: (orderId: string, status: OrderStatus, notes?: string) => void;
   addProduct: (product: TopUpProduct) => void;
   updateProduct: (product: TopUpProduct) => void;
   deleteProduct: (productId: string) => void;
@@ -80,8 +83,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('dc_orders');
-    return saved ? JSON.parse(saved) : INITIAL_ORDERS;
+    const ver = localStorage.getItem('dc_orders_ver');
+    if (ver === 'v2_live_tracking') {
+      const saved = localStorage.getItem('dc_orders');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          // fallback
+        }
+      }
+    }
+    localStorage.setItem('dc_orders_ver', 'v2_live_tracking');
+    localStorage.setItem('dc_orders', JSON.stringify(INITIAL_ORDERS));
+    return INITIAL_ORDERS;
+  });
+
+  const [activeTrackingOrderId, setActiveTrackingOrderId] = useState<string | null>(() => {
+    return 'ORD-5520';
   });
 
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
@@ -173,7 +192,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updatedBalance = currentUser.walletBalance - pkg.price;
     setCurrentUser((prev) => ({ ...prev, walletBalance: updatedBalance }));
 
-    // Create Order
+    const serverRef = '#DC-' + Math.floor(100000 + Math.random() * 900000);
+    const nowTimeStr = new Date().toLocaleTimeString('bn-BD', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    }) + ', ' + new Date().toLocaleDateString('bn-BD', { month: 'short', day: 'numeric' });
+
+    // Create Order with initial 'pending' status
     const newOrder: Order = {
       id: 'ORD-' + Math.floor(5000 + Math.random() * 5000),
       userId: currentUser.id,
@@ -185,39 +211,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       price: pkg.price,
       playerId,
       zoneId,
-      status: 'processing',
-      createdAt: new Date().toLocaleDateString('bn-BD', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      }),
-      notes: 'অর্ডার সার্ভারে ভেরিফাই হচ্ছে...'
+      status: 'pending',
+      createdAt: nowTimeStr,
+      serverRef,
+      estimatedDeliverySeconds: 8,
+      notes: 'অর্ডার সিস্টেমে গৃহীত হয়েছে। সার্ভার হ্যান্ডশেকের অপেক্ষায় রয়েছে।'
     };
 
     setOrders((prev) => [newOrder, ...prev]);
-    showToast(`অর্ডার সফল! ${pkg.name} প্রসেসিং হচ্ছে। ৳ ${pkg.price} ওয়ালেট থেকে কাটা হয়েছে।`, 'success');
+    setActiveTrackingOrderId(newOrder.id);
+    showToast(`অর্ডার সফল! ${pkg.name} গৃহীত হয়েছে (Pending)। লাইভ ট্র্যাক হচ্ছে।`, 'success');
 
-    // Simulate instant delivery for packages marked instant
-    if (pkg.instantDelivery) {
-      setTimeout(() => {
-        setOrders((prev) =>
-          prev.map((ord) =>
-            ord.id === newOrder.id
-              ? {
-                  ...ord,
-                  status: 'delivered',
-                  deliveredAt: new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' }),
-                  notes: 'ইনস্ট্যান্ট সার্ভার এপিআই এর মাধ্যমে গেম একাউন্টে সফলভাবে ডেলিভার হয়েছে!'
-                }
-              : ord
-          )
-        );
-      }, 5000);
-    }
+    // Real-time Progression: Step 1 (Pending) -> Step 2 (Processing) after 3.2s
+    setTimeout(() => {
+      setOrders((prev) =>
+        prev.map((ord) =>
+          ord.id === newOrder.id && ord.status === 'pending'
+            ? {
+                ...ord,
+                status: 'processing',
+                processingAt: new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                notes: 'সার্ভার এপিআই এর সাথে কানেক্ট হয়েছে এবং ডায়মন্ড/আইটেম ডিসপ্যাচ করা হচ্ছে...'
+              }
+            : ord
+        )
+      );
+    }, 3200);
+
+    // Step 2 (Processing) -> Step 3 (Delivered) after 8.2s total
+    setTimeout(() => {
+      setOrders((prev) =>
+        prev.map((ord) =>
+          ord.id === newOrder.id && (ord.status === 'pending' || ord.status === 'processing')
+            ? {
+                ...ord,
+                status: 'delivered',
+                deliveredAt: new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                notes: `সফলভাবে গেম একাউন্টে পাঠানো হয়েছে! রেফারেন্স: ${serverRef}`
+              }
+            : ord
+        )
+      );
+    }, 8200);
 
     return { success: true, order: newOrder };
+  };
+
+  const advanceOrderStep = (orderId: string) => {
+    const nowTime = new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id !== orderId) return o;
+        if (o.status === 'pending') {
+          return {
+            ...o,
+            status: 'processing',
+            processingAt: nowTime,
+            notes: 'সার্ভার এপিআই এর সাথে কানেক্ট হয়েছে এবং ডায়মন্ড/আইটেম ডিসপ্যাচ করা হচ্ছে...'
+          };
+        } else if (o.status === 'processing') {
+          return {
+            ...o,
+            status: 'delivered',
+            deliveredAt: nowTime,
+            notes: `সফলভাবে একাউন্টে পাঠানো হয়েছে! রেফারেন্স: ${o.serverRef || '#DC-889104'}`
+          };
+        } else if (o.status === 'delivered') {
+          return {
+            ...o,
+            status: 'pending',
+            notes: 'অর্ডার পুনরায় কিউতে যোগ করা হয়েছে।'
+          };
+        }
+        return o;
+      })
+    );
   };
 
   const approveDeposit = (depositId: string) => {
@@ -263,20 +331,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(`ডিপোজিট ${depositId} রিজেক্ট করা হয়েছে।`, 'info');
   };
 
-  const updateOrderStatus = (orderId: string, status: 'delivered' | 'failed', notes?: string) => {
+  const updateOrderStatus = (orderId: string, status: OrderStatus, notes?: string) => {
+    const nowTime = new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     setOrders((prev) =>
       prev.map((o) =>
         o.id === orderId
           ? {
               ...o,
               status,
-              notes: notes || (status === 'delivered' ? 'ডেলিভারি সম্পন্ন।' : 'ব্যর্থ হয়েছে।'),
-              deliveredAt: status === 'delivered' ? new Date().toLocaleTimeString('bn-BD') : undefined
+              notes: notes || (status === 'delivered' ? 'ডেলিভারি সম্পন্ন।' : status === 'processing' ? 'সার্ভার প্রসেসিং চলছে...' : status === 'pending' ? 'অপেক্ষমাণ।' : 'ব্যর্থ হয়েছে।'),
+              deliveredAt: status === 'delivered' ? nowTime : o.deliveredAt,
+              processingAt: status === 'processing' ? nowTime : o.processingAt
             }
           : o
       )
     );
-    showToast(`অর্ডার ${orderId} স্ট্যাটাস আপডেট হয়েছে: ${status === 'delivered' ? 'ডেলিভার্ড' : 'ফেইল্ড'}`, 'success');
+    showToast(`অর্ডার ${orderId} স্ট্যাটাস: ${status.toUpperCase()}`, 'info');
   };
 
   const addProduct = (product: TopUpProduct) => {
@@ -317,6 +387,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         products,
         deposits,
         orders,
+        activeTrackingOrderId,
+        setActiveTrackingOrderId,
+        advanceOrderStep,
         toasts,
         showToast,
         loginWithPhone,

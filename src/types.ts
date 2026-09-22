@@ -2,7 +2,7 @@ export type PaymentMethodType = 'bkash' | 'nagad' | 'rocket';
 
 export type DepositStatus = 'pending' | 'approved' | 'rejected';
 
-export type OrderStatus = 'processing' | 'delivered' | 'failed';
+export type OrderStatus = 'pending' | 'processing' | 'delivered' | 'failed';
 
 export interface DepositRequest {
   id: string;
@@ -59,7 +59,10 @@ export interface Order {
   zoneId?: string;
   status: OrderStatus;
   createdAt: string;
+  processingAt?: string;
   deliveredAt?: string;
+  serverRef?: string;
+  estimatedDeliverySeconds?: number;
   notes?: string;
 }
 

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { PAYMENT_ACCOUNTS } from '../data/initialData';
+import { PAYMENT_ACCOUNTS, SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from '../data/initialData';
 import { PaymentMethodType, DepositRequest } from '../types';
 import { 
   Copy, Check, AlertCircle, Clock, CheckCircle2, XCircle, 
-  Wallet, ShieldAlert, ArrowRight, Info, RefreshCw, Smartphone, ExternalLink 
+  Wallet, ShieldAlert, ArrowRight, Info, RefreshCw, Smartphone, ExternalLink, MessageCircle
 } from 'lucide-react';
 
 export const AddMoneyView: React.FC = () => {

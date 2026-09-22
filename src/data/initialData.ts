@@ -18,16 +18,20 @@ export const ADMIN_USER: User = {
   joinedAt: '2024-11-01'
 };
 
+export const SUPPORT_PHONE = '01845735906';
+export const SUPPORT_PHONE_FORMATTED = '01845-735906';
+export const SUPPORT_WHATSAPP_LINK = 'https://wa.me/8801845735906';
+
 export const PAYMENT_ACCOUNTS: Record<'bkash' | 'nagad' | 'rocket', PaymentAccountInfo> = {
   bkash: {
     method: 'bkash',
     name: 'bKash Personal (বিকাশ পার্সোনাল)',
-    number: '01874-291048',
+    number: '01845-735906',
     type: 'Personal',
     color: '#D82365', // Authentic bKash pink accent
     instructions: [
       'আপনার বিকাশ অ্যাপ অথবা *247# ডায়াল করে "Send Money" (সেন্ড মানি) অপশন বেছে নিন।',
-      'প্রাপক নম্বর হিসেবে আমাদের পার্সোনাল নম্বরটি লিখুন: 01874-291048',
+      'প্রাপক নম্বর হিসেবে আমাদের পার্সোনাল নম্বরটি লিখুন: 01845-735906',
       'কাঙ্ক্ষিত পরিমাণ টাকা ও আপনার গোপন পিন দিয়ে ট্রানজেকশন সফল করুন।',
       'এসএমএস (SMS) বা অ্যাপ থেকে ৮-১০ ডিজিটের Transaction ID (TrxID) টি কপি করে নিচের বক্সে দিন।'
     ]
@@ -35,12 +39,12 @@ export const PAYMENT_ACCOUNTS: Record<'bkash' | 'nagad' | 'rocket', PaymentAccou
   nagad: {
     method: 'nagad',
     name: 'Nagad Personal (নগদ পার্সোনাল)',
-    number: '01723-884912',
+    number: '01845-735906',
     type: 'Personal',
     color: '#F25822', // Authentic Nagad orange accent
     instructions: [
       'আপনার নগদ অ্যাপ অথবা *167# ডায়াল করে "Send Money" অপশন সিলেক্ট করুন।',
-      'প্রাপক নম্বর হিসেবে আমাদের নগদ নম্বরটি লিখুন: 01723-884912',
+      'প্রাপক নম্বর হিসেবে আমাদের নগদ নম্বরটি লিখুন: 01845-735906',
       'টাকার পরিমাণ ও পিন দিয়ে কনফার্ম করুন (নগদে ক্যাশ-আউট নয়, শুধু সেন্ড মানি)।',
       'প্রাপ্ত ৮ ডিজিটের TrxID টি এবং আপনার যে নম্বর থেকে পাঠিয়েছেন তা দিয়ে সাবমিট করুন।'
     ]
@@ -351,19 +355,19 @@ export const INITIAL_DEPOSITS: DepositRequest[] = [
 
 export const INITIAL_ORDERS: Order[] = [
   {
-    id: 'ORD-5491',
+    id: 'ORD-5520',
     userId: 'usr_88017',
     userName: 'সায়েদ আফ্রিদী',
-    productId: 'uid_topup_bd',
-    productTitle: 'UID Top up(BD)',
-    packageId: 'bd_115',
-    packageName: '115 Diamonds (115 💎)',
-    price: 85,
+    productId: 'friday_offer',
+    productTitle: 'Friday offer',
+    packageId: 'fo_240',
+    packageName: '240 Diamonds (Special Friday Bundle)',
+    price: 165,
     playerId: '2849182941',
-    status: 'delivered',
-    createdAt: '2025-02-20 14:40',
-    deliveredAt: '2025-02-20 14:42',
-    notes: 'Success - BD Server Ref: #BD-992104'
+    status: 'pending',
+    createdAt: '2025-02-21 11:20',
+    serverRef: '#DC-771923',
+    notes: 'অর্ডার গৃহীত হয়েছে। পেমেন্ট ভেরিফাইড এবং গেম সার্ভার কিউতে যাওয়ার অপেক্ষায় রয়েছে।'
   },
   {
     id: 'ORD-5502',
@@ -377,6 +381,25 @@ export const INITIAL_ORDERS: Order[] = [
     playerId: 'https://vt.tiktok.com/ZSjX91k2A/',
     status: 'processing',
     createdAt: '2025-02-21 11:05',
-    notes: 'ডেলিভারি প্রসেসিং হচ্ছে, কিছুক্ষণের মধ্যেই সম্পন্ন হবে।'
+    processingAt: '2025-02-21 11:06',
+    serverRef: '#DC-884102',
+    notes: 'টিকটক সার্ভিস এপিআই এর সাথে কানেক্ট হয়েছে এবং লাইক পাঠানো হচ্ছে।'
+  },
+  {
+    id: 'ORD-5491',
+    userId: 'usr_88017',
+    userName: 'সায়েদ আফ্রিদী',
+    productId: 'uid_topup_bd',
+    productTitle: 'UID Top up(BD)',
+    packageId: 'bd_115',
+    packageName: '115 Diamonds (115 💎)',
+    price: 85,
+    playerId: '2849182941',
+    status: 'delivered',
+    createdAt: '2025-02-20 14:40',
+    processingAt: '2025-02-20 14:41',
+    deliveredAt: '2025-02-20 14:42',
+    serverRef: '#BD-992104',
+    notes: 'সফলভাবে গেম একাউন্টে ডায়মন্ড পাঠানো হয়েছে!'
   }
 ];

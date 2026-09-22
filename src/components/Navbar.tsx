@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Wallet, PlusCircle, ShieldCheck, User, LogOut, ChevronDown, Gamepad2, ShoppingBag } from 'lucide-react';
+import { SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from '../data/initialData';
+import { Wallet, PlusCircle, ShieldCheck, User, LogOut, ChevronDown, Gamepad2, ShoppingBag, MessageCircle } from 'lucide-react';
 
 interface NavbarProps {
   onOpenAuth: () => void;
@@ -140,6 +141,19 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
             )}
           </button>
 
+          {/* 24/7 WhatsApp Support Helpline Button */}
+          <a
+            id="nav-whatsapp-support-btn"
+            href={SUPPORT_WHATSAPP_LINK}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-300 text-xs font-bold transition-all shadow-xs cursor-pointer"
+            title={`২৪/৭ হোয়াটসঅ্যাপ কাস্টমার সাপোর্ট হেল্পলাইন (${SUPPORT_PHONE_FORMATTED})`}
+          >
+            <MessageCircle className="w-4 h-4 text-emerald-700" />
+            <span className="hidden md:inline">২৪/৭ সাপোর্ট</span>
+          </a>
+
           {/* User Account / Profile Dropdown */}
           <div className="relative">
             <button
@@ -201,6 +215,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
                     <User className="w-3.5 h-3.5 text-teal-600" />
                     <span>অন্য ফোন নম্বরে লগইন</span>
                   </button>
+                  <a
+                    id="profile-dropdown-whatsapp"
+                    href={SUPPORT_WHATSAPP_LINK}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-emerald-950 font-bold hover:bg-emerald-50 rounded-lg text-left"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>২৪/৭ WhatsApp হেল্পলাইন</span>
+                  </a>
                 </div>
 
                 <div className="pt-1 border-t border-slate-200">

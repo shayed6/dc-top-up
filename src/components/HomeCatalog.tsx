@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { TopUpProduct } from '../types';
+import { SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from '../data/initialData';
 import { 
   Search, X, Gamepad2, Sparkles, 
   ArrowUpDown, Zap, ShieldCheck, MessageCircle, PlusCircle, 
-  ShoppingBag, ArrowRight, Tag, RefreshCw, Video, ThumbsUp
+  ShoppingBag, ArrowRight, Tag, RefreshCw, Video, ThumbsUp, ExternalLink
 } from 'lucide-react';
 
 interface HomeCatalogProps {
@@ -218,10 +219,20 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
             <ShieldCheck className="w-4 h-4 text-teal-600 shrink-0" />
             <span className="truncate">১০০% সিকিউর ট্রানজেকশন গ্যারান্টি</span>
           </div>
-          <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-xs">
-            <MessageCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span className="truncate">২৪/৭ কাস্টমার সাপোর্ট হেল্পলাইন</span>
-          </div>
+          <a
+            id="home-whatsapp-helpline-card"
+            href={SUPPORT_WHATSAPP_LINK}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between gap-2 bg-emerald-50 hover:bg-emerald-100 px-3 py-2 rounded-lg border border-emerald-300 text-emerald-950 shadow-xs transition-colors cursor-pointer group"
+            title={`২৪/৭ কাস্টমার সাপোর্ট হেল্পলাইন - WhatsApp: ${SUPPORT_PHONE_FORMATTED}`}
+          >
+            <div className="flex items-center gap-2 truncate">
+              <MessageCircle className="w-4 h-4 text-emerald-700 shrink-0" />
+              <span className="truncate font-bold">২৪/৭ কাস্টমার সাপোর্ট ({SUPPORT_PHONE_FORMATTED})</span>
+            </div>
+            <ExternalLink className="w-3.5 h-3.5 text-emerald-700 shrink-0 opacity-70 group-hover:opacity-100" />
+          </a>
         </div>
       </div>
 

@@ -15,7 +15,8 @@ import { PurchaseModal } from './components/PurchaseModal';
 import { AuthModal } from './components/AuthModal';
 import { ToastContainer } from './components/ToastContainer';
 import { TopUpProduct } from './types';
-import { ShieldCheck, Zap, Headphones, Heart } from 'lucide-react';
+import { ShieldCheck, Zap, Headphones, Heart, MessageCircle } from 'lucide-react';
+import { SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from './data/initialData';
 
 const MainLayout: React.FC = () => {
   const { activeTab, setActiveTab, isAdminMode, selectedProduct, setSelectedProduct } = useApp();
@@ -95,10 +96,17 @@ const MainLayout: React.FC = () => {
               <Zap className="w-4 h-4 text-amber-600" />
               <span>অটোমেটেড দ্রুত ডেলিভারি</span>
             </span>
-            <span className="flex items-center gap-1.5">
-              <Headphones className="w-4 h-4 text-teal-600" />
-              <span>২৪/৭ হেল্পলাইন</span>
-            </span>
+            <a
+              id="footer-whatsapp-helpline"
+              href={SUPPORT_WHATSAPP_LINK}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 hover:text-emerald-700 font-bold transition-colors cursor-pointer"
+              title={`২৪/৭ কাস্টমার সাপোর্ট হেল্পলাইন - WhatsApp: ${SUPPORT_PHONE_FORMATTED}`}
+            >
+              <Headphones className="w-4 h-4 text-emerald-600" />
+              <span>২৪/৭ হেল্পলাইন ({SUPPORT_PHONE_FORMATTED})</span>
+            </a>
           </div>
 
           <div className="text-[11px] text-black text-center md:text-right font-medium">
@@ -109,6 +117,24 @@ const MainLayout: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* Floating 24/7 WhatsApp Customer Support Helpline Button */}
+      <a
+        id="floating-whatsapp-helpline-btn"
+        href={SUPPORT_WHATSAPP_LINK}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40 flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/30 border border-emerald-400 transition-all transform hover:scale-105 active:scale-95 group cursor-pointer"
+        title={`২৪/৭ কাস্টমার সাপোর্ট হেল্পলাইন - WhatsApp: ${SUPPORT_PHONE_FORMATTED}`}
+      >
+        <span className="relative flex h-2.5 w-2.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
+        </span>
+        <MessageCircle className="w-4 h-4 fill-white text-emerald-600" />
+        <span className="hidden sm:inline">২৪/৭ কাস্টমার সাপোর্ট ({SUPPORT_PHONE_FORMATTED})</span>
+        <span className="sm:hidden">WhatsApp হেল্পলাইন</span>
+      </a>
 
       {/* Mobile Floating Bottom Navigation Dock */}
       <BottomNav />

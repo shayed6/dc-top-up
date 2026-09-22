@@ -536,9 +536,34 @@ export const AdminDashboard: React.FC = () => {
                   </div>
 
                   {/* Order Status & Actions */}
-                  <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200">
-                    {ord.status === 'processing' ? (
+                  <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200">
+                    {ord.status === 'pending' && (
                       <>
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-950 border border-amber-300">
+                          Pending
+                        </span>
+                        <button
+                          onClick={() => updateOrderStatus(ord.id, 'processing', 'এডমিন থেকে প্রসেসিং কিউতে পাঠানো হয়েছে।')}
+                          className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 cursor-pointer shadow-xs"
+                        >
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                          <span>Processing এ দিন</span>
+                        </button>
+                        <button
+                          onClick={() => updateOrderStatus(ord.id, 'delivered', 'এডমিন দ্বারা সরাসরি ডেলিভারি সম্পন্ন।')}
+                          className="px-2.5 py-1.5 rounded-lg bg-black hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1 cursor-pointer shadow-xs"
+                        >
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Delivered</span>
+                        </button>
+                      </>
+                    )}
+
+                    {ord.status === 'processing' && (
+                      <>
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-950 border border-blue-300">
+                          Processing
+                        </span>
                         <button
                           onClick={() => updateOrderStatus(ord.id, 'delivered', 'সরাসরি গেটওয়ে দিয়ে ডেলিভারি সম্পন্ন।')}
                           className="px-3 py-1.5 rounded-lg bg-black hover:bg-slate-800 text-white font-extrabold text-xs flex items-center gap-1 shadow-xs cursor-pointer"
@@ -554,15 +579,17 @@ export const AdminDashboard: React.FC = () => {
                           ব্যর্থ মার্ক করুন
                         </button>
                       </>
-                    ) : (
-                      <span
-                        className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                          ord.status === 'delivered'
-                            ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
-                            : 'bg-rose-100 text-rose-950 border border-rose-300'
-                        }`}
-                      >
-                        {ord.status === 'delivered' ? '✓ Delivered' : '✗ Failed'}
+                    )}
+
+                    {ord.status === 'delivered' && (
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-950 border border-emerald-300">
+                        ✓ Delivered
+                      </span>
+                    )}
+
+                    {ord.status === 'failed' && (
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-950 border border-rose-300">
+                        ✗ Failed
                       </span>
                     )}
                   </div>

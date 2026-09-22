@@ -6,7 +6,7 @@ export const BottomNav: React.FC = () => {
   const { activeTab, setActiveTab, isAdminMode, setIsAdminMode, deposits, orders } = useApp();
 
   const pendingDepositsCount = deposits.filter((d) => d.status === 'pending').length;
-  const processingOrdersCount = orders.filter((o) => o.status === 'processing').length;
+  const activeOrdersCount = orders.filter((o) => o.status === 'pending' || o.status === 'processing').length;
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 px-2 py-1.5 pb-safe shadow-lg text-black">
@@ -63,9 +63,9 @@ export const BottomNav: React.FC = () => {
         >
           <div className="relative">
             <ShoppingBag className="w-5 h-5 mb-0.5 text-blue-700" />
-            {processingOrdersCount > 0 && (
+            {activeOrdersCount > 0 && (
               <span className="absolute -top-1 -right-1.5 w-4 h-4 rounded-full bg-blue-600 text-white font-extrabold text-[9px] flex items-center justify-center">
-                {processingOrdersCount}
+                {activeOrdersCount}
               </span>
             )}
           </div>
