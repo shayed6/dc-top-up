@@ -155,7 +155,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
           </div>
         ) : (
           <div className="p-5 space-y-5 max-h-[75vh] overflow-y-auto">
-            {/* Step 1: In-game UID / Player ID */}
+            {/* Step 1: Target identifier (UID or Link/Username) */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-extrabold text-black flex items-center gap-1.5">
@@ -168,7 +168,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
                   className="text-[11px] text-emerald-800 hover:underline flex items-center gap-1 font-bold cursor-pointer"
                 >
                   <HelpCircle className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>UID কোথায় পাবেন?</span>
+                  <span>{product.category === 'facebook' || product.category === 'tiktok' ? 'লিংক কোথায় পাবেন?' : 'UID কোথায় পাবেন?'}</span>
                 </button>
               </div>
 
@@ -177,7 +177,13 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
                 type="text"
                 value={playerId}
                 onChange={(e) => setPlayerId(e.target.value)}
-                placeholder={`যেমন: 2849182941 (${product.playerIdLabel})`}
+                placeholder={
+                  product.category === 'tiktok'
+                    ? 'যেমন: https://www.tiktok.com/@username/video/...'
+                    : product.category === 'facebook'
+                    ? 'যেমন: https://www.facebook.com/page-or-profile-link'
+                    : `যেমন: 2849182941 (${product.playerIdLabel})`
+                }
                 className="w-full bg-white border border-slate-300 focus:border-black rounded-xl px-4 py-2.5 text-sm text-black font-mono focus:outline-none focus:ring-2 focus:ring-slate-200 shadow-xs"
               />
 
@@ -199,9 +205,15 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
 
               {showUidGuide && (
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-300 text-xs text-black space-y-1">
-                  <p className="font-bold text-black">কিভাবে Player ID পাবেন:</p>
+                  <p className="font-bold text-black">
+                    {product.category === 'facebook' || product.category === 'tiktok'
+                      ? 'কিভাবে লিংক বা ইউজারনেম কপি করবেন:'
+                      : 'কিভাবে Player ID পাবেন:'}
+                  </p>
                   <p className="text-slate-800 font-medium">
-                    গেম ওপেন করে বামদিকের প্রোফাইল পিকচারে ট্যাপ করুন। নামের নিচে থাকা ৮-১০ ডিজিটের আইডি নম্বরটি কপি করে এখানে পেস্ট করুন।
+                    {product.category === 'facebook' || product.category === 'tiktok'
+                      ? 'আপনার ফেসবুক বা টিকটক অ্যাপ ওপেন করে কাঙ্ক্ষিত পেজ, প্রোফাইল বা পোস্টের Share অপশন থেকে "Copy Link" এ চাপ দিয়ে লিংক কপি করে এখানে পেস্ট করুন।'
+                      : 'গেম ওপেন করে বামদিকের প্রোফাইল পিকচারে ট্যাপ করুন। নামের নিচে থাকা ৮-১০ ডিজিটের আইডি নম্বরটি কপি করে এখানে পেস্ট করুন।'}
                   </p>
                 </div>
               )}

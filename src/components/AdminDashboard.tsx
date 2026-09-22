@@ -680,12 +680,9 @@ export const AdminDashboard: React.FC = () => {
                     onChange={(e: any) => setNewProductCategory(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs font-medium"
                   >
-                    <option value="games">গেমস (Games)</option>
-                    <option value="wallet">ওয়ালেট ও পিন (Wallet)</option>
-                    <option value="giftcard">গিফট কার্ড (Gift Cards)</option>
-                    <option value="battle_royale">ব্যাটল রয়্যাল (Battle Royale)</option>
-                    <option value="moba">MOBA</option>
-                    <option value="fps">FPS শুটার</option>
+                    <option value="gaming">গেম অফার ও মেম্বারশিপ (Gaming)</option>
+                    <option value="tiktok">টিকটক সার্ভিস (TikTok)</option>
+                    <option value="facebook">ফেসবুক সার্ভিস (Facebook)</option>
                   </select>
                 </div>
 

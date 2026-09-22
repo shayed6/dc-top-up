@@ -2,9 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { TopUpProduct } from '../types';
 import { 
-  Search, X, Gamepad2, Wallet, Gift, Sparkles, 
+  Search, X, Gamepad2, Sparkles, 
   ArrowUpDown, Zap, ShieldCheck, MessageCircle, PlusCircle, 
-  ShoppingBag, ArrowRight, Tag, RefreshCw
+  ShoppingBag, ArrowRight, Tag, RefreshCw, Video, ThumbsUp
 } from 'lucide-react';
 
 interface HomeCatalogProps {
@@ -14,46 +14,69 @@ interface HomeCatalogProps {
 export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => {
   const { products, currentUser, setActiveTab } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<'all' | 'games' | 'wallet' | 'giftcard'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<'all' | 'gaming' | 'tiktok' | 'facebook'>('all');
   const [selectedSubGenre, setSelectedSubGenre] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'popular' | 'price_asc' | 'price_desc' | 'name_asc'>('popular');
 
   const categories = [
-    { id: 'all' as const, label: 'সবকিছু', labelEn: 'All', icon: Sparkles },
-    { id: 'games' as const, label: 'গেমস', labelEn: 'Games', icon: Gamepad2 },
-    { id: 'wallet' as const, label: 'ওয়ালেট ও পিন', labelEn: 'Wallet', icon: Wallet },
-    { id: 'giftcard' as const, label: 'গিফট কার্ড', labelEn: 'Gift Cards', icon: Gift }
+    { id: 'all' as const, label: 'সবকিছু', labelEn: 'All (13)', icon: Sparkles },
+    { id: 'gaming' as const, label: 'গেম অফার ও মেম্বারশিপ', labelEn: 'Gaming', icon: Gamepad2 },
+    { id: 'tiktok' as const, label: 'টিকটক সার্ভিস', labelEn: 'TikTok', icon: Video },
+    { id: 'facebook' as const, label: 'ফেসবুক সার্ভিস', labelEn: 'Facebook', icon: ThumbsUp }
   ];
 
-  const subGenres = [
-    { id: 'all', label: 'সব গেম' },
-    { id: 'Battle Royale', label: 'ব্যাটল রয়্যাল' },
-    { id: 'MOBA', label: 'MOBA' },
-    { id: 'FPS', label: 'FPS শুটার' }
+  const subGenresGaming = [
+    { id: 'all', label: 'সব গেম অফার' },
+    { id: 'Special Offer', label: 'ফ্রাইডে অফার' },
+    { id: 'Lucky Box', label: 'মিস্ট্রি বক্স' },
+    { id: 'BD Server', label: 'UID Top up (BD)' },
+    { id: 'Membership', label: 'উইকলি/মান্থলি' },
+    { id: 'Combo Offer', label: 'কম্বো অফার' },
+    { id: 'Level Up Pass', label: 'লেভেল আপ পাস' }
+  ];
+
+  const subGenresTikTok = [
+    { id: 'all', label: 'সব টিকটক সার্ভিস' },
+    { id: 'TikTok Engagement', label: 'ভিডিও লাইক' },
+    { id: 'TikTok Growth', label: 'একাউন্ট ফলোয়ার্স' }
+  ];
+
+  const subGenresFacebook = [
+    { id: 'all', label: 'সব ফেসবুক সার্ভিস' },
+    { id: 'Page Growth', label: 'পেজ ফলোয়ার্স' },
+    { id: 'Post Engagement', label: 'পোস্ট রিঅ্যাক্ট' },
+    { id: 'Video / Reels', label: 'ভিডিও ভিউজ' },
+    { id: 'Profile Growth', label: 'আইডি ফলোয়ার্স' }
   ];
 
   const quickSearchTags = [
-    { label: 'Free Fire', icon: '🔥' },
-    { label: 'PUBG UC', icon: '⚡' },
-    { label: 'Steam Wallet', icon: '🎮' },
-    { label: 'MLBB', icon: '⚔️' },
-    { label: 'Google Play', icon: '🎁' },
-    { label: 'Razer Gold', icon: '💳' },
-    { label: 'Valorant', icon: '🎯' }
+    { label: 'UID Top up', icon: '⚡' },
+    { label: 'Friday offer', icon: '🔥' },
+    { label: 'Mystery Box', icon: '🎁' },
+    { label: 'weekly/monthly', icon: '💎' },
+    { label: 'combo offer', icon: '💥' },
+    { label: 'weekly lite', icon: '⭐' },
+    { label: 'level up pass', icon: '🏆' },
+    { label: 'TikTok like', icon: '❤️' },
+    { label: 'TikTok followers', icon: '🚀' },
+    { label: 'Facebook page', icon: '👍' },
+    { label: 'Facebook react', icon: '🥰' },
+    { label: 'Facebook views', icon: '👁️' },
+    { label: 'Facebook id', icon: '👤' }
   ];
 
   // Calculate live count per category
   const categoryCounts = useMemo(() => {
-    const counts = { all: 0, games: 0, wallet: 0, giftcard: 0 };
+    const counts = { all: 0, gaming: 0, tiktok: 0, facebook: 0 };
     products.forEach((p) => {
       if (!p.isActive) return;
       counts.all++;
-      if (p.category === 'games' || ['battle_royale', 'moba', 'fps'].includes(p.category as string)) {
-        counts.games++;
-      } else if (p.category === 'wallet') {
-        counts.wallet++;
-      } else if (p.category === 'giftcard') {
-        counts.giftcard++;
+      if (p.category === 'gaming' || p.category === 'games') {
+        counts.gaming++;
+      } else if (p.category === 'tiktok') {
+        counts.tiktok++;
+      } else if (p.category === 'facebook') {
+        counts.facebook++;
       }
     });
     return counts;
@@ -67,16 +90,16 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
 
         // Category filter
         let matchesCategory = true;
-        if (selectedCategory === 'games') {
-          matchesCategory = p.category === 'games' || ['battle_royale', 'moba', 'fps'].includes(p.category as string);
-        } else if (selectedCategory === 'wallet') {
-          matchesCategory = p.category === 'wallet';
-        } else if (selectedCategory === 'giftcard') {
-          matchesCategory = p.category === 'giftcard';
+        if (selectedCategory === 'gaming') {
+          matchesCategory = p.category === 'gaming' || p.category === 'games';
+        } else if (selectedCategory === 'tiktok') {
+          matchesCategory = p.category === 'tiktok';
+        } else if (selectedCategory === 'facebook') {
+          matchesCategory = p.category === 'facebook';
         }
 
-        // Subgenre filter for games
-        if (matchesCategory && selectedCategory === 'games' && selectedSubGenre !== 'all') {
+        // Subgenre filter
+        if (matchesCategory && selectedSubGenre !== 'all') {
           matchesCategory = p.subCategory?.toLowerCase() === selectedSubGenre.toLowerCase();
         }
 
@@ -217,7 +240,7 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="গেম, ওয়ালেট বা গিফট কার্ড খুঁজুন (Free Fire, Steam, Google Play, UC...)"
+              placeholder="সার্ভিস খুঁজুন (Friday offer, Mystery Box, UID Top up, TikTok, Facebook...)"
               className="w-full bg-white border border-slate-300 focus:border-black rounded-xl pl-10 pr-24 py-2.5 text-sm text-black placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all shadow-xs"
             />
 
@@ -297,9 +320,7 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
                   id={`filter-category-${cat.id}`}
                   onClick={() => {
                     setSelectedCategory(cat.id);
-                    if (cat.id !== 'games') {
-                      setSelectedSubGenre('all');
-                    }
+                    setSelectedSubGenre('all');
                   }}
                   className={`px-4 py-2.5 rounded-xl font-bold transition-all whitespace-nowrap flex items-center gap-2 border ${
                     isSelected
@@ -327,7 +348,7 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
           {/* Active Result Count & Reset Button */}
           <div className="flex items-center justify-between sm:justify-end gap-3 text-xs text-black font-bold">
             <span>
-              মোট <strong className="text-emerald-700 font-extrabold font-sans text-sm">{filteredProducts.length}</strong> টি অপশন পাওয়া গেছে
+              মোট <strong className="text-emerald-700 font-extrabold font-sans text-sm">{filteredProducts.length}</strong> টি সার্ভিস অপশন
             </span>
             {(searchQuery || selectedCategory !== 'all' || selectedSubGenre !== 'all') && (
               <button
@@ -341,11 +362,59 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
           </div>
         </div>
 
-        {/* Sub-Genre Filter (Active when 'Games' is selected) */}
-        {selectedCategory === 'games' && (
+        {/* Sub-Category Filter: Gaming */}
+        {selectedCategory === 'gaming' && (
           <div className="flex items-center gap-1.5 pt-1 overflow-x-auto no-scrollbar text-xs">
-            <span className="text-[11px] text-black font-bold mr-1 shrink-0">গেম জঁনরা:</span>
-            {subGenres.map((sub) => {
+            <span className="text-[11px] text-black font-bold mr-1 shrink-0">গেম ফিল্টার:</span>
+            {subGenresGaming.map((sub) => {
+              const isSelected = selectedSubGenre === sub.id;
+              return (
+                <button
+                  key={sub.id}
+                  id={`subgenre-${sub.id.toLowerCase().replace(/\s+/g, '-')}`}
+                  onClick={() => setSelectedSubGenre(sub.id)}
+                  className={`px-3 py-1 rounded-lg text-xs transition-all whitespace-nowrap border font-bold ${
+                    isSelected
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-white border-slate-300 text-black hover:bg-slate-100'
+                  }`}
+                >
+                  {sub.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Sub-Category Filter: TikTok */}
+        {selectedCategory === 'tiktok' && (
+          <div className="flex items-center gap-1.5 pt-1 overflow-x-auto no-scrollbar text-xs">
+            <span className="text-[11px] text-black font-bold mr-1 shrink-0">টিকটক ফিল্টার:</span>
+            {subGenresTikTok.map((sub) => {
+              const isSelected = selectedSubGenre === sub.id;
+              return (
+                <button
+                  key={sub.id}
+                  id={`subgenre-${sub.id.toLowerCase().replace(/\s+/g, '-')}`}
+                  onClick={() => setSelectedSubGenre(sub.id)}
+                  className={`px-3 py-1 rounded-lg text-xs transition-all whitespace-nowrap border font-bold ${
+                    isSelected
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-white border-slate-300 text-black hover:bg-slate-100'
+                  }`}
+                >
+                  {sub.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Sub-Category Filter: Facebook */}
+        {selectedCategory === 'facebook' && (
+          <div className="flex items-center gap-1.5 pt-1 overflow-x-auto no-scrollbar text-xs">
+            <span className="text-[11px] text-black font-bold mr-1 shrink-0">ফেসবুক ফিল্টার:</span>
+            {subGenresFacebook.map((sub) => {
               const isSelected = selectedSubGenre === sub.id;
               return (
                 <button
@@ -374,11 +443,11 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
           </div>
 
           <div className="space-y-1">
-            <p className="text-base font-extrabold text-black">কোনো টপ-আপ প্রোডাক্ট পাওয়া যায়নি</p>
+            <p className="text-base font-extrabold text-black">কোনো সার্ভিস বা প্রোডাক্ট পাওয়া যায়নি</p>
             <p className="text-xs text-slate-800 font-medium max-w-sm mx-auto leading-relaxed">
               {searchQuery ? (
                 <>
-                  <span className="text-black font-extrabold">"{searchQuery}"</span> এর সাথে মেলে এমন কোনো পণ্য পাওয়া যায়নি।
+                  <span className="text-black font-extrabold">"{searchQuery}"</span> এর সাথে মেলে এমন কোনো অপশন পাওয়া যায়নি।
                 </>
               ) : (
                 'নির্বাচিত ক্যাটেগরিতে বর্তমানে কোনো সক্রিয় আইটেম নেই।'
@@ -392,7 +461,7 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
               onClick={handleClearFilters}
               className="px-4 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
             >
-              সব প্রোডাক্ট দেখুন
+              সব সার্ভিস দেখুন
             </button>
             <button
               onClick={() => setActiveTab('deposit')}
@@ -407,14 +476,15 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
           {filteredProducts.map((product) => {
             const lowestPrice = Math.min(...product.packages.map((p) => p.price));
             const packageCount = product.packages.length;
+            const isSocial = product.category === 'facebook' || product.category === 'tiktok';
 
             // Readable category tag in Bengali
             const categoryBadgeLabel =
-              product.category === 'wallet'
-                ? 'ওয়ালেট ও পিন'
-                : product.category === 'giftcard'
-                ? 'গিফট কার্ড'
-                : product.subCategory || 'গেম টপ-আপ';
+              product.category === 'tiktok'
+                ? 'TikTok'
+                : product.category === 'facebook'
+                ? 'Facebook'
+                : product.subCategory || 'Gaming';
 
             return (
               <div
@@ -495,7 +565,7 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
                       id={`buy-btn-${product.id}`}
                       className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-black hover:bg-slate-800 text-white font-bold text-xs transition-all shadow-xs"
                     >
-                      <span>টপ-আপ করুন</span>
+                      <span>{isSocial ? 'অর্ডার করুন' : 'টপ-আপ করুন'}</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>

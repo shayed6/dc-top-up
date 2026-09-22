@@ -28,7 +28,7 @@ export interface TopUpPackage {
   instantDelivery?: boolean;
 }
 
-export type ProductCategory = 'games' | 'wallet' | 'giftcard' | 'battle_royale' | 'moba' | 'fps';
+export type ProductCategory = 'gaming' | 'facebook' | 'tiktok' | 'games';
 
 export interface TopUpProduct {
   id: string;

@@ -57,28 +57,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedProduct, setSelectedProduct] = useState<TopUpProduct | null>(null);
 
   const [products, setProducts] = useState<TopUpProduct[]>(() => {
-    const saved = localStorage.getItem('dc_products');
-    if (saved) {
-      try {
-        const parsed: TopUpProduct[] = JSON.parse(saved);
-        const existingIds = new Set(parsed.map((p) => p.id));
-        const missing = INITIAL_PRODUCTS.filter((p) => !existingIds.has(p.id));
-        // Also ensure categories for existing items have correct primary category
-        const updated = parsed.map((p) => {
-          let item = { ...p };
-          if (['battle_royale', 'moba', 'fps'].includes(item.category as string)) {
-            item = { ...item, category: 'games' as const, subCategory: item.category };
-          }
-          if (item.id === 'freefire') {
-            item.image = '/dc_logo.jpg';
-          }
-          return item;
-        });
-        return missing.length > 0 ? [...updated, ...missing] : updated;
-      } catch (e) {
-        return INITIAL_PRODUCTS;
+    const ver = localStorage.getItem('dc_catalog_ver');
+    if (ver === 'v4_exact_13_items') {
+      const saved = localStorage.getItem('dc_products');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          // fallback
+        }
       }
     }
+    // Refresh to the exact items requested by the user
+    localStorage.setItem('dc_catalog_ver', 'v4_exact_13_items');
+    localStorage.setItem('dc_products', JSON.stringify(INITIAL_PRODUCTS));
     return INITIAL_PRODUCTS;
   });
 
