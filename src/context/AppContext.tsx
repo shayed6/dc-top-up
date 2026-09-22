@@ -58,7 +58,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [products, setProducts] = useState<TopUpProduct[]>(() => {
     const ver = localStorage.getItem('dc_catalog_ver');
-    if (ver === 'v4_exact_13_items') {
+    if (ver === 'v5_matched_images') {
       const saved = localStorage.getItem('dc_products');
       if (saved) {
         try {
@@ -68,8 +68,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
     }
-    // Refresh to the exact items requested by the user
-    localStorage.setItem('dc_catalog_ver', 'v4_exact_13_items');
+    // Refresh to the exact items with matching images requested by the user
+    localStorage.setItem('dc_catalog_ver', 'v5_matched_images');
     localStorage.setItem('dc_products', JSON.stringify(INITIAL_PRODUCTS));
     return INITIAL_PRODUCTS;
   });

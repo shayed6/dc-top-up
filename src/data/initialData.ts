@@ -69,7 +69,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'শুক্রবার স্পেশাল 🔥',
     description: 'প্রতি শুক্রবারের ধামাকা স্পেশাল অফার! বিশাল ছাড়ে অতিরিক্ত বোনাস ডায়মন্ড ও আকর্ষণীয় রিওয়ার্ড।',
     playerIdLabel: 'Player ID (UID)',
-    image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80',
+    image: '/src/assets/images/ff_friday_offer_1790099054219.jpg',
     bannerGradient: 'from-amber-600/30 to-rose-950/40',
     isActive: true,
     packages: [
@@ -87,7 +87,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'লাকি ড্রপ 🎁',
     description: 'লাকি মিস্ট্রি বক্স খুলে জিতে নিন গ্যারান্টিড ডায়মন্ড, রানিং বান্ডেল ও সারপ্রাইজ রিওয়ার্ড।',
     playerIdLabel: 'Player ID (UID)',
-    image: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=600&q=80',
+    image: '/src/assets/images/ff_mystery_box_1790099065451.jpg',
     bannerGradient: 'from-purple-600/30 to-indigo-950/40',
     isActive: true,
     packages: [
@@ -127,7 +127,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'অফিসিয়াল মেম্বারশিপ',
     description: 'সাপ্তাহিক ও মাসিক মেম্বারশিপ। প্রতিদিন লগইন করে ডায়মন্ড ক্লেইম করুন এবং উপভোগ করুন ভিআইপি প্রিভিলেজ।',
     playerIdLabel: 'Player ID (UID)',
-    image: 'https://images.unsplash.com/photo-1579373903781-fd5c0c30c4cd?auto=format&fit=crop&w=600&q=80',
+    image: '/src/assets/images/ff_weekly_monthly_1790099076947.jpg',
     bannerGradient: 'from-blue-600/30 to-indigo-950/40',
     isActive: true,
     packages: [
@@ -143,7 +143,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'মেগা সেভিং কম্বো 💥',
     description: 'একসাথে উইকলি ও মান্থলি মেম্বারশিপ নিয়ে উপভোগ করুন ৩০০০+ ডায়মন্ড এবং সুপার ক্যাশব্যাক ছাড়।',
     playerIdLabel: 'Player ID (UID)',
-    image: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=600&q=80',
+    image: '/src/assets/images/ff_combo_offer_1790099090251.jpg',
     bannerGradient: 'from-teal-600/30 to-slate-950/40',
     isActive: true,
     packages: [
@@ -159,7 +159,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'সাশ্রয়ী উইকলি 💎',
     description: 'বাংলাদেশ সার্ভারের জন্য স্পেশাল উইকলি লাইট মেম্বারশিপ। স্বল্প খরচে দ্রুত ডায়মন্ড জমার সেরা প্যাকেজ।',
     playerIdLabel: 'Player ID (UID)',
-    image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80',
+    image: '/src/assets/images/ff_weekly_lite_1790099102077.jpg',
     bannerGradient: 'from-cyan-600/30 to-blue-950/40',
     isActive: true,
     packages: [
@@ -176,7 +176,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: '৮০২ ডায়মন্ড রিওয়ার্ড ⭐',
     description: 'লেভেল ৩০ পর্যন্ত মোট ৮০২ টি ডায়মন্ড ক্লেইম করার অফিসিয়াল লেভেল আপ পাস। প্রতিটি আইডিতে একবারই প্রযোজ্য।',
     playerIdLabel: 'Player ID (UID)',
-    image: 'https://images.unsplash.com/photo-1618193139062-2c5bf4f935b7?auto=format&fit=crop&w=600&q=80',
+    image: '/src/assets/images/ff_levelup_pass_1790099113083.jpg',
     bannerGradient: 'from-amber-600/30 to-yellow-950/40',
     isActive: true,
     packages: [
@@ -191,7 +191,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'ইনস্ট্যান্ট লাইকস ⚡',
     description: 'আপনার টিকটক ভিডিও ভাইরাল করার জন্য হাই কোয়ালিটি লাইক। কোনো পাসওয়ার্ড লাগবে না, শুধু ভিডিও লিংক দিন।',
     playerIdLabel: 'TikTok Video Link (ভিডিও লিংক)',
-    image: 'https://images.unsplash.com/photo-1611162618071-b39a2ec055fb?auto=format&fit=crop&w=600&q=80',
+    image: '/src/assets/images/tiktok_like_cover_1790098978170.jpg',
     bannerGradient: 'from-rose-600/30 to-black/60',
     isActive: true,
     packages: [
@@ -210,7 +210,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'নন-ড্রপ ফলোয়ার্স 🚀',
     description: 'টিকটক একাউন্ট গ্রোথ ও লাইভ অপশন আনলক করতে রিয়েল ও অ্যাক্টিভ ফলোয়ার্স। ১০০% নিরাপদ ও দ্রুত ডেলিভারি।',
     playerIdLabel: 'TikTok Profile Link / Username (প্রোফাইল লিংক বা ইউজারনেম)',
-    image: 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?auto=format&fit=crop&w=600&q=80',
+    image: '/src/assets/images/tiktok_followers_cover_1790098990397.jpg',
     bannerGradient: 'from-pink-600/30 to-black/60',
     isActive: true,
     packages: [
@@ -229,7 +229,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'রিয়েল পেজ ফলোয়ার্স 👍',
     description: 'ফেসবুক বিজনেস অথবা ক্রিয়েটর পেজের ফলোয়ার ও লাইক। পেজের গ্রহণযোগ্যতা ও মনিটাইজেশন বাড়াতে সহায়ক।',
     playerIdLabel: 'Facebook Page Link (পেজ লিংক)',
-    image: 'https://images.unsplash.com/photo-1562577309-4932fdd64cd1?auto=format&fit=crop&w=600&q=80',
+    image: '/src/assets/images/facebook_page_cover_1790099001864.jpg',
     bannerGradient: 'from-blue-600/30 to-indigo-950/60',
     isActive: true,
     packages: [
@@ -248,7 +248,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'মিক্সড রিয়েক্ট ❤️',
     description: 'যেকোনো ফেসবুক পাবলিক পোস্ট বা ছবির জন্য লাভ, কেয়ার, হাহা বা ওয়াও রিঅ্যাক্ট। ইনস্ট্যান্ট ডেলিভারি।',
     playerIdLabel: 'Facebook Post Link (পোস্ট লিংক)',
-    image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80',
+    image: '/src/assets/images/facebook_react_cover_1790099014624.jpg',
     bannerGradient: 'from-rose-600/30 to-blue-950/60',
     isActive: true,
     packages: [
@@ -267,7 +267,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'ভিডিও ও রিলস ভিউজ 👁️',
     description: 'ফেসবুক ভিডিও এবং রিলসের জন্য হাই রিটেনশন ওয়াচ-টাইম ও ভিউজ। ভিডিও ভাইরাল হওয়ার সুযোগ তৈরি করে।',
     playerIdLabel: 'Facebook Video / Reel Link (ভিডিও বা রিলস লিংক)',
-    image: 'https://images.unsplash.com/photo-1492619375914-88005aa9e8fb?auto=format&fit=crop&w=600&q=80',
+    image: '/src/assets/images/facebook_views_cover_1790099026190.jpg',
     bannerGradient: 'from-sky-600/30 to-blue-950/60',
     isActive: true,
     packages: [
@@ -280,13 +280,13 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
   },
   {
     id: 'facebook_id_followers',
-    title: 'Facebook id folloers',
+    title: 'facebook ID followers',
     category: 'facebook',
     subCategory: 'Profile Growth',
     badge: 'আইডি ফলোয়ার্স 👤',
     description: 'ব্যক্তিগত ফেসবুক আইডি / প্রোফাইলের জন্য অর্গানিক ফলোয়ার্স। প্রোফাইল পাবলিক রেখে শুধু লিংক প্রদান করুন।',
     playerIdLabel: 'Facebook Profile / ID Link (প্রোফাইল লিংক)',
-    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+    image: '/src/assets/images/facebook_id_followers_1790099038810.jpg',
     bannerGradient: 'from-blue-600/30 to-slate-950/60',
     isActive: true,
     packages: [
