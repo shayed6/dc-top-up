@@ -8,8 +8,6 @@ export const INITIAL_USER: User = {
   walletBalance: 420.00,
   role: 'user',
   joinedAt: '2025-01-15',
-  loyaltyPoints: 125,
-  tier: 'Gold',
   savedGameUid: '2847591028'
 };
 
@@ -20,9 +18,7 @@ export const ADMIN_USER: User = {
   email: 'admin@dctopup.com',
   walletBalance: 99999.00,
   role: 'admin',
-  joinedAt: '2024-11-01',
-  loyaltyPoints: 950,
-  tier: 'Diamond'
+  joinedAt: '2024-11-01'
 };
 
 export const SUPPORT_PHONE = '01845735906';

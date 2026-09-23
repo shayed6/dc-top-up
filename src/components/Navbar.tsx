@@ -105,11 +105,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
           >
             <User className="w-4 h-4 text-purple-600" />
             <span>প্রোফাইল</span>
-            {currentUser.loyaltyPoints !== undefined && (
-              <span className="text-[10px] font-extrabold text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
-                ★ {currentUser.loyaltyPoints}
-              </span>
-            )}
           </button>
         </nav>
 
@@ -213,17 +208,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
                       setActiveTab('profile');
                       setProfileDropdownOpen(false);
                     }}
-                    className="w-full flex items-center justify-between px-3 py-2 text-xs text-black font-bold hover:bg-slate-100 rounded-lg text-left cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-black font-bold hover:bg-slate-100 rounded-lg text-left cursor-pointer"
                   >
-                    <div className="flex items-center gap-2">
-                      <User className="w-3.5 h-3.5 text-purple-600" />
-                      <span>আমার প্রোফাইল ও লয়ালটি</span>
-                    </div>
-                    {currentUser.loyaltyPoints !== undefined && (
-                      <span className="text-[10px] font-extrabold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                        {currentUser.loyaltyPoints} pts
-                      </span>
-                    )}
+                    <User className="w-3.5 h-3.5 text-purple-600" />
+                    <span>আমার প্রোফাইল</span>
                   </button>
 
                   <button

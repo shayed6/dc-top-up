@@ -25,9 +25,8 @@ interface AppContextType {
   toasts: ToastInfo[];
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   
-  // Profile & Loyalty
+  // Profile
   updateUserProfile: (updates: Partial<User>) => void;
-  redeemLoyaltyPoints: (points: number) => { success: boolean; message: string };
 
   // Notice & Announcement
   notice: AppNotice;
@@ -174,8 +173,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       walletBalance: 250.00,
       role: 'user',
       joinedAt: new Date().toISOString().split('T')[0],
-      loyaltyPoints: 50,
-      tier: 'Silver',
       savedGameUid: ''
     };
     setCurrentUser(user);
@@ -194,31 +191,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...updates
     }));
     showToast('প্রোফাইল তথ্য সফলভাবে আপডেট হয়েছে!', 'success');
-  };
-
-  const redeemLoyaltyPoints = (points: number): { success: boolean; message: string } => {
-    if (points <= 0) {
-      return { success: false, message: 'সঠিক পয়েন্ট পরিমাণ প্রদান করুন।' };
-    }
-    const currentPts = currentUser.loyaltyPoints ?? 0;
-    if (currentPts < points) {
-      return { success: false, message: `অপর্যাপ্ত লয়ালটি পয়েন্ট! আপনার রয়েছে ${currentPts} পয়েন্ট।` };
-    }
-    // 10 points = 1 BDT
-    const convertedTaka = Number((points / 10).toFixed(2));
-    const remainingPoints = currentPts - points;
-    const newTier: 'Bronze' | 'Silver' | 'Gold' | 'Diamond' =
-      remainingPoints >= 400 ? 'Diamond' : remainingPoints >= 150 ? 'Gold' : remainingPoints >= 50 ? 'Silver' : 'Bronze';
-
-    setCurrentUser((prev) => ({
-      ...prev,
-      walletBalance: Number((prev.walletBalance + convertedTaka).toFixed(2)),
-      loyaltyPoints: remainingPoints,
-      tier: newTier
-    }));
-
-    showToast(`অভিনন্দন! ${points} পয়েন্ট রিডিম করে ৳ ${convertedTaka} ওয়ালেটে যোগ হয়েছে! 🎉`, 'success');
-    return { success: true, message: `৳ ${convertedTaka} ওয়ালেটে যোগ হয়েছে!` };
   };
 
   const submitDeposit = async (method: PaymentMethodType, amount: number, senderPhone: string, trxId: string) => {
@@ -268,19 +240,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    // Deduct balance and award loyalty points
+    // Deduct balance
     const updatedBalance = Number((currentUser.walletBalance - pkg.price).toFixed(2));
-    const pointsEarned = Math.max(2, Math.floor(pkg.price / 10));
-    const prevPoints = currentUser.loyaltyPoints ?? 125;
-    const newPoints = prevPoints + pointsEarned;
-    const newTier: 'Bronze' | 'Silver' | 'Gold' | 'Diamond' =
-      newPoints >= 400 ? 'Diamond' : newPoints >= 150 ? 'Gold' : newPoints >= 50 ? 'Silver' : 'Bronze';
-
     setCurrentUser((prev) => ({
       ...prev,
       walletBalance: updatedBalance,
-      loyaltyPoints: newPoints,
-      tier: newTier,
       savedGameUid: playerId || prev.savedGameUid
     }));
 
@@ -312,7 +276,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setOrders((prev) => [newOrder, ...prev]);
     setActiveTrackingOrderId(newOrder.id);
-    showToast(`অর্ডার সফল! ${pkg.name} গৃহীত হয়েছে এবং +${pointsEarned} লয়ালটি পয়েন্ট যোগ হয়েছে!`, 'success');
+    showToast(`অর্ডার সফল! ${pkg.name} গৃহীত হয়েছে (Pending)। লাইভ ট্র্যাক হচ্ছে।`, 'success');
 
     // Real-time Progression: Step 1 (Pending) -> Step 2 (Processing) after 3.2s
     setTimeout(() => {
@@ -564,7 +528,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         loginWithPhone,
         logout,
         updateUserProfile,
-        redeemLoyaltyPoints,
         submitDeposit,
         selectedProduct,
         setSelectedProduct,
