@@ -4,18 +4,25 @@ export const INITIAL_USER: User = {
   id: 'usr_88017',
   name: 'সায়েদ আফ্রিদী',
   phone: '01712-345678',
+  email: 'shayedafride24@gmail.com',
   walletBalance: 420.00,
   role: 'user',
-  joinedAt: '2025-01-15'
+  joinedAt: '2025-01-15',
+  loyaltyPoints: 125,
+  tier: 'Gold',
+  savedGameUid: '2847591028'
 };
 
 export const ADMIN_USER: User = {
   id: 'usr_admin_01',
   name: 'DC Admin (ম্যানেজার)',
   phone: '01800-000000',
+  email: 'admin@dctopup.com',
   walletBalance: 99999.00,
   role: 'admin',
-  joinedAt: '2024-11-01'
+  joinedAt: '2024-11-01',
+  loyaltyPoints: 950,
+  tier: 'Diamond'
 };
 
 export const SUPPORT_PHONE = '01845735906';

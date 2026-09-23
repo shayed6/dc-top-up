@@ -77,7 +77,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
 
           <button
             id="nav-desktop-orders-btn"
-            onClick={() => setActiveTab('orders')}
+            onClick={() => {
+              setIsAdminMode(false);
+              setActiveTab('orders');
+            }}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
               activeTab === 'orders' && !isAdminMode
                 ? 'bg-white text-black shadow-xs border border-slate-200'
@@ -86,6 +89,27 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
           >
             <ShoppingBag className="w-4 h-4 text-blue-600" />
             <span>অর্ডারসমূহ</span>
+          </button>
+
+          <button
+            id="nav-desktop-profile-btn"
+            onClick={() => {
+              setIsAdminMode(false);
+              setActiveTab('profile');
+            }}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === 'profile' && !isAdminMode
+                ? 'bg-white text-black shadow-xs border border-slate-200'
+                : 'text-black hover:bg-white/60'
+            }`}
+          >
+            <User className="w-4 h-4 text-purple-600" />
+            <span>প্রোফাইল</span>
+            {currentUser.loyaltyPoints !== undefined && (
+              <span className="text-[10px] font-extrabold text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                ★ {currentUser.loyaltyPoints}
+              </span>
+            )}
           </button>
         </nav>
 
@@ -183,12 +207,33 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
 
                 <div className="py-1">
                   <button
+                    id="profile-dropdown-my-profile"
+                    onClick={() => {
+                      setIsAdminMode(false);
+                      setActiveTab('profile');
+                      setProfileDropdownOpen(false);
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2 text-xs text-black font-bold hover:bg-slate-100 rounded-lg text-left cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <User className="w-3.5 h-3.5 text-purple-600" />
+                      <span>আমার প্রোফাইল ও লয়ালটি</span>
+                    </div>
+                    {currentUser.loyaltyPoints !== undefined && (
+                      <span className="text-[10px] font-extrabold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                        {currentUser.loyaltyPoints} pts
+                      </span>
+                    )}
+                  </button>
+
+                  <button
                     id="profile-dropdown-add-money"
                     onClick={() => {
+                      setIsAdminMode(false);
                       setActiveTab('deposit');
                       setProfileDropdownOpen(false);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-black font-semibold hover:bg-slate-100 rounded-lg text-left"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-black font-semibold hover:bg-slate-100 rounded-lg text-left cursor-pointer"
                   >
                     <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
                     <span>টাকা যোগ করুন</span>

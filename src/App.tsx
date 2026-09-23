@@ -10,6 +10,7 @@ import { BottomNav } from './components/BottomNav';
 import { HomeCatalog } from './components/HomeCatalog';
 import { AddMoneyView } from './components/AddMoneyView';
 import { OrdersView } from './components/OrdersView';
+import { UserProfileView } from './components/UserProfileView';
 import { AdminDashboard } from './components/AdminDashboard';
 import { PurchaseModal } from './components/PurchaseModal';
 import { AuthModal } from './components/AuthModal';
@@ -44,6 +45,8 @@ const MainLayout: React.FC = () => {
             {activeTab === 'deposit' && <AddMoneyView />}
 
             {activeTab === 'orders' && <OrdersView />}
+
+            {activeTab === 'profile' && <UserProfileView />}
 
             {activeTab === 'admin' && <AdminDashboard />}
           </>

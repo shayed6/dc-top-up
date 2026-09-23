@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Gamepad2, PlusCircle, ShoppingBag, ShieldCheck } from 'lucide-react';
+import { Gamepad2, PlusCircle, ShoppingBag, ShieldCheck, User } from 'lucide-react';
 
 export const BottomNav: React.FC = () => {
   const { activeTab, setActiveTab, isAdminMode, setIsAdminMode, deposits, orders } = useApp();
@@ -9,7 +9,7 @@ export const BottomNav: React.FC = () => {
   const activeOrdersCount = orders.filter((o) => o.status === 'pending' || o.status === 'processing').length;
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 px-2 py-1.5 pb-safe shadow-lg text-black">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 px-1 py-1.5 pb-safe shadow-lg text-black">
       <div className="flex items-center justify-around">
         {/* Home */}
         <button
@@ -18,14 +18,14 @@ export const BottomNav: React.FC = () => {
             setIsAdminMode(false);
             setActiveTab('home');
           }}
-          className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
+          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
             activeTab === 'home' && !isAdminMode
               ? 'text-emerald-800 font-extrabold'
               : 'text-black hover:text-emerald-700 font-semibold'
           }`}
         >
           <Gamepad2 className="w-5 h-5 mb-0.5 text-emerald-700" />
-          <span className="text-[11px] leading-tight">টপ-আপ</span>
+          <span className="text-[10px] leading-tight">টপ-আপ</span>
         </button>
 
         {/* Add Money - Hero Button */}
@@ -35,7 +35,7 @@ export const BottomNav: React.FC = () => {
             setIsAdminMode(false);
             setActiveTab('deposit');
           }}
-          className={`relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
+          className={`relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
             activeTab === 'deposit' && !isAdminMode
               ? 'text-emerald-800 font-extrabold'
               : 'text-black hover:text-emerald-700 font-semibold'
@@ -45,7 +45,7 @@ export const BottomNav: React.FC = () => {
             <PlusCircle className="w-5 h-5 mb-0.5 text-emerald-700" />
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-600 animate-ping"></span>
           </div>
-          <span className="text-[11px] leading-tight">টাকা যোগ</span>
+          <span className="text-[10px] leading-tight">টাকা যোগ</span>
         </button>
 
         {/* Orders */}
@@ -55,7 +55,7 @@ export const BottomNav: React.FC = () => {
             setIsAdminMode(false);
             setActiveTab('orders');
           }}
-          className={`relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
+          className={`relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
             activeTab === 'orders' && !isAdminMode
               ? 'text-blue-900 font-extrabold'
               : 'text-black hover:text-blue-700 font-semibold'
@@ -69,7 +69,24 @@ export const BottomNav: React.FC = () => {
               </span>
             )}
           </div>
-          <span className="text-[11px] leading-tight">অর্ডার</span>
+          <span className="text-[10px] leading-tight">অর্ডার</span>
+        </button>
+
+        {/* Profile */}
+        <button
+          id="mobile-nav-profile-btn"
+          onClick={() => {
+            setIsAdminMode(false);
+            setActiveTab('profile');
+          }}
+          className={`relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'profile' && !isAdminMode
+              ? 'text-purple-900 font-extrabold'
+              : 'text-black hover:text-purple-700 font-semibold'
+          }`}
+        >
+          <User className="w-5 h-5 mb-0.5 text-purple-700" />
+          <span className="text-[10px] leading-tight">প্রোফাইল</span>
         </button>
 
         {/* Admin Dashboard */}
@@ -79,7 +96,7 @@ export const BottomNav: React.FC = () => {
             setIsAdminMode(true);
             setActiveTab('admin');
           }}
-          className={`relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
+          className={`relative flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all cursor-pointer ${
             isAdminMode
               ? 'text-amber-900 font-extrabold'
               : 'text-black hover:text-amber-700 font-semibold'
@@ -93,7 +110,7 @@ export const BottomNav: React.FC = () => {
               </span>
             )}
           </div>
-          <span className="text-[11px] leading-tight">এডমিন</span>
+          <span className="text-[10px] leading-tight">এডমিন</span>
         </button>
       </div>
     </nav>

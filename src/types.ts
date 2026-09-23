@@ -87,13 +87,20 @@ export interface Order {
   notes?: string;
 }
 
+export type LoyaltyTier = 'Bronze' | 'Silver' | 'Gold' | 'Diamond';
+
 export interface User {
   id: string;
   name: string;
   phone: string;
+  email?: string;
   walletBalance: number;
   role: 'user' | 'admin';
   joinedAt: string;
+  loyaltyPoints?: number;
+  tier?: LoyaltyTier;
+  avatarUrl?: string;
+  savedGameUid?: string;
 }
 
 export interface PaymentAccountInfo {
