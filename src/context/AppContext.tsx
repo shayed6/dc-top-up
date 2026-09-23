@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, DepositRequest, Order, OrderStatus, TopUpProduct, PaymentMethodType } from '../types';
-import { INITIAL_USER, ADMIN_USER, INITIAL_PRODUCTS, INITIAL_DEPOSITS, INITIAL_ORDERS } from '../data/initialData';
+import { User, DepositRequest, Order, OrderStatus, TopUpProduct, PaymentMethodType, AppNotice, HomeBanner } from '../types';
+import { INITIAL_USER, ADMIN_USER, INITIAL_PRODUCTS, INITIAL_DEPOSITS, INITIAL_ORDERS, INITIAL_NOTICE, INITIAL_BANNERS } from '../data/initialData';
 
 export type ActiveTab = 'home' | 'deposit' | 'orders' | 'admin';
 
@@ -25,6 +25,16 @@ interface AppContextType {
   toasts: ToastInfo[];
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   
+  // Notice & Announcement
+  notice: AppNotice;
+  updateNotice: (newNotice: Partial<AppNotice>) => void;
+
+  // Promotional Banners
+  banners: HomeBanner[];
+  addBanner: (banner: HomeBanner) => void;
+  updateBanner: (banner: HomeBanner) => void;
+  deleteBanner: (bannerId: string) => void;
+
   // Auth
   loginWithPhone: (phone: string, name?: string) => void;
   logout: () => void;
@@ -44,6 +54,9 @@ interface AppContextType {
   addProduct: (product: TopUpProduct) => void;
   updateProduct: (product: TopUpProduct) => void;
   deleteProduct: (productId: string) => void;
+  toggleProductStock: (productId: string) => void;
+  togglePackageStock: (productId: string, packageId: string) => void;
+  updateProductImage: (productId: string, newImageUrl: string) => void;
   resetToSampleData: () => void;
 }
 
@@ -103,6 +116,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return 'ORD-5520';
   });
 
+  const [notice, setNotice] = useState<AppNotice>(() => {
+    const saved = localStorage.getItem('dc_notice');
+    return saved ? JSON.parse(saved) : INITIAL_NOTICE;
+  });
+
+  const [banners, setBanners] = useState<HomeBanner[]>(() => {
+    const saved = localStorage.getItem('dc_banners');
+    return saved ? JSON.parse(saved) : INITIAL_BANNERS;
+  });
+
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
 
   // Sync with localStorage
@@ -121,6 +144,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem('dc_orders', JSON.stringify(orders));
   }, [orders]);
+
+  useEffect(() => {
+    localStorage.setItem('dc_notice', JSON.stringify(notice));
+  }, [notice]);
+
+  useEffect(() => {
+    localStorage.setItem('dc_banners', JSON.stringify(banners));
+  }, [banners]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Date.now().toString() + Math.random().toString().slice(2, 6);
@@ -177,8 +208,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const product = products.find((p) => p.id === productId);
     if (!product) return { success: false, error: 'পণ্য খুঁজে পাওয়া যায়নি।' };
 
+    if (product.isOutOfStock) {
+      return { success: false, error: 'দুঃখিত, এই প্রোডাক্টটি বর্তমানে স্টক আউট (Out of Stock)।' };
+    }
+
     const pkg = product.packages.find((p) => p.id === packageId);
     if (!pkg) return { success: false, error: 'প্যাকেজ খুঁজে পাওয়া যায়নি।' };
+
+    if (pkg.isOutOfStock) {
+      return { success: false, error: `দুঃখিত, '${pkg.name}' প্যাকেজটি বর্তমানে স্টক আউট (Out of Stock)।` };
+    }
 
     if (currentUser.walletBalance < pkg.price) {
       const shortage = pkg.price - currentUser.walletBalance;
@@ -364,15 +403,86 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('প্রোডাক্ট মুছে ফেলা হয়েছে।', 'info');
   };
 
+  const toggleProductStock = (productId: string) => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id !== productId) return p;
+        const newStock = !p.isOutOfStock;
+        showToast(
+          `প্রোডাক্ট '${p.title}' এখন ${newStock ? 'স্টক আউট (Stock Out)' : 'স্টকে রয়েছে (In Stock)'}!`,
+          newStock ? 'info' : 'success'
+        );
+        return { ...p, isOutOfStock: newStock };
+      })
+    );
+  };
+
+  const togglePackageStock = (productId: string, packageId: string) => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id !== productId) return p;
+        const updatedPkgs = p.packages.map((pkg) => {
+          if (pkg.id !== packageId) return pkg;
+          const newPkgStock = !pkg.isOutOfStock;
+          showToast(
+            `প্যাকেজ '${pkg.name}' এখন ${newPkgStock ? 'স্টক আউট' : 'স্টকে রয়েছে'}!`,
+            newPkgStock ? 'info' : 'success'
+          );
+          return { ...pkg, isOutOfStock: newPkgStock };
+        });
+        return { ...p, packages: updatedPkgs };
+      })
+    );
+  };
+
+  const updateProductImage = (productId: string, newImageUrl: string) => {
+    setProducts((prev) =>
+      prev.map((p) => (p.id === productId ? { ...p, image: newImageUrl } : p))
+    );
+    showToast('প্রোডাক্ট ছবি সফলভাবে পরিবর্তন করা হয়েছে!', 'success');
+  };
+
+  const updateNotice = (newNotice: Partial<AppNotice>) => {
+    setNotice((prev) => ({
+      ...prev,
+      ...newNotice,
+      updatedAt: new Date().toLocaleDateString('bn-BD', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
+    }));
+    showToast('হোমপেজ নোটিশ সফলভাবে আপডেট হয়েছে!', 'success');
+  };
+
+  const addBanner = (banner: HomeBanner) => {
+    setBanners((prev) => [banner, ...prev]);
+    showToast('নতুন ব্যানার সফলভাবে যোগ করা হয়েছে!', 'success');
+  };
+
+  const updateBanner = (updatedBanner: HomeBanner) => {
+    setBanners((prev) => prev.map((b) => (b.id === updatedBanner.id ? updatedBanner : b)));
+    showToast('ব্যানার সফলভাবে আপডেট হয়েছে!', 'success');
+  };
+
+  const deleteBanner = (bannerId: string) => {
+    setBanners((prev) => prev.filter((b) => b.id !== bannerId));
+    showToast('ব্যানার রিমুভ করা হয়েছে!', 'info');
+  };
+
   const resetToSampleData = () => {
     localStorage.removeItem('dc_products');
     localStorage.removeItem('dc_deposits');
     localStorage.removeItem('dc_orders');
     localStorage.removeItem('dc_user');
+    localStorage.removeItem('dc_notice');
+    localStorage.removeItem('dc_banners');
     setProducts(INITIAL_PRODUCTS);
     setDeposits(INITIAL_DEPOSITS);
     setOrders(INITIAL_ORDERS);
     setCurrentUser(INITIAL_USER);
+    setNotice(INITIAL_NOTICE);
+    setBanners(INITIAL_BANNERS);
     showToast('সব ডেমো ডেটা রিসেট হয়েছে!', 'info');
   };
 
@@ -392,6 +502,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         advanceOrderStep,
         toasts,
         showToast,
+        notice,
+        updateNotice,
+        banners,
+        addBanner,
+        updateBanner,
+        deleteBanner,
         loginWithPhone,
         logout,
         submitDeposit,
@@ -404,6 +520,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addProduct,
         updateProduct,
         deleteProduct,
+        toggleProductStock,
+        togglePackageStock,
+        updateProductImage,
         resetToSampleData
       }}
     >

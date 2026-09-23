@@ -26,6 +26,7 @@ export interface TopUpPackage {
   originalPrice?: number;
   popular?: boolean;
   instantDelivery?: boolean;
+  isOutOfStock?: boolean;
 }
 
 export type ProductCategory = 'gaming' | 'facebook' | 'tiktok' | 'games';
@@ -43,6 +44,26 @@ export interface TopUpProduct {
   image: string;
   bannerGradient: string;
   packages: TopUpPackage[];
+  isActive: boolean;
+  isOutOfStock?: boolean;
+}
+
+export interface AppNotice {
+  id: string;
+  text: string;
+  type: 'info' | 'warning' | 'urgent' | 'offer';
+  isActive: boolean;
+  updatedAt: string;
+}
+
+export interface HomeBanner {
+  id: string;
+  title: string;
+  subtitle?: string;
+  imageUrl: string;
+  badge?: string;
+  actionTab?: 'deposit' | 'orders' | 'home';
+  actionText?: string;
   isActive: boolean;
 }
 

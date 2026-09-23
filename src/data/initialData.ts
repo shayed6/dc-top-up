@@ -1,4 +1,4 @@
-import { TopUpProduct, DepositRequest, Order, User, PaymentAccountInfo } from '../types';
+import { TopUpProduct, DepositRequest, Order, User, PaymentAccountInfo, AppNotice, HomeBanner } from '../types';
 
 export const INITIAL_USER: User = {
   id: 'usr_88017',
@@ -402,4 +402,72 @@ export const INITIAL_ORDERS: Order[] = [
     serverRef: '#BD-992104',
     notes: 'সফলভাবে গেম একাউন্টে ডায়মন্ড পাঠানো হয়েছে!'
   }
+];
+
+export const INITIAL_NOTICE: AppNotice = {
+  id: 'notice_default',
+  text: '⚡ ডিসি টপ-আপে বিকাশ ও নগদে সেন্ড মানি করে দ্রুত ওয়ালেট রিচার্জ করুন! ২৪/৭ অটো ইনস্ট্যান্ট ডেলিভারি ও কাস্টমার হেল্পলাইন চালু আছে।',
+  type: 'urgent',
+  isActive: true,
+  updatedAt: '2025-02-23'
+};
+
+export const INITIAL_BANNERS: HomeBanner[] = [
+  {
+    id: 'banner_friday',
+    title: 'Friday Special Mega Offer 🔥',
+    subtitle: 'প্রতি শুক্রবারে ডাবল ডায়মন্ড বোনাস ও বিশাল ছাড়! সরাসরি UID দিয়ে টপ-আপ নিন।',
+    imageUrl: '/src/assets/images/ff_friday_offer_1790099054219.jpg',
+    badge: 'ফ্রাইডে স্পেশাল',
+    actionTab: 'home',
+    actionText: 'অফার দেখুন',
+    isActive: true
+  },
+  {
+    id: 'banner_wallet',
+    title: 'ডিসি ওয়ালেট রিচার্জ (০% ক্যাশআউট ফি)',
+    subtitle: 'বিকাশ ও নগদে 01845-735906 নম্বরে সেন্ড মানি করে মাত্র ৩ মিনিটে ওয়ালেটে ফান্ড যুক্ত করুন।',
+    imageUrl: '/dc_logo.jpg',
+    badge: '০% ফি রিচার্জ',
+    actionTab: 'deposit',
+    actionText: 'টাকা যোগ করুন',
+    isActive: true
+  },
+  {
+    id: 'banner_membership',
+    title: 'সাপ্তাহিক ও মাসিক মেম্বারশিপ কম্বো',
+    subtitle: 'একসাথে উইকলি ও মান্থলি নিয়ে ৩০০০+ ডায়মন্ড সেভ করুন এক ক্লিকে।',
+    imageUrl: '/src/assets/images/ff_weekly_monthly_1790099076947.jpg',
+    badge: 'মেগা সেভিং',
+    actionTab: 'home',
+    actionText: 'প্যাকেজ দেখুন',
+    isActive: true
+  },
+  {
+    id: 'banner_social',
+    title: 'টিকটক ও ফেসবুক সোশ্যাল গ্রোথ সার্ভিস',
+    subtitle: '১০০% রিয়েল অর্গানিক ফলোয়ার্স, লাইক, ভিউজ ও পোস্ট রিঅ্যাক্ট সার্ভিস।',
+    imageUrl: '/src/assets/images/tiktok_like_cover_1790098978170.jpg',
+    badge: 'সোশ্যাল সার্ভিস',
+    actionTab: 'home',
+    actionText: 'অর্ডার করুন',
+    isActive: true
+  }
+];
+
+export const PRESET_PRODUCT_IMAGES: { label: string; url: string; category: string }[] = [
+  { label: 'DC Top Up লোগো', url: '/dc_logo.jpg', category: 'General' },
+  { label: 'DC Wallet ব্যানার', url: '/src/assets/images/dc_topup_logo_1790094683501.jpg', category: 'General' },
+  { label: 'Friday Offer (ফ্রাইডে অফার)', url: '/src/assets/images/ff_friday_offer_1790099054219.jpg', category: 'Gaming' },
+  { label: 'Mystery Box (মিস্ট্রি বক্স)', url: '/src/assets/images/ff_mystery_box_1790099065451.jpg', category: 'Gaming' },
+  { label: 'Weekly / Monthly (মেম্বারশিপ)', url: '/src/assets/images/ff_weekly_monthly_1790099076947.jpg', category: 'Gaming' },
+  { label: 'Combo Offer (কম্বো অফার)', url: '/src/assets/images/ff_combo_offer_1790099090251.jpg', category: 'Gaming' },
+  { label: 'Weekly Lite BD (উইকলি লাইট)', url: '/src/assets/images/ff_weekly_lite_1790099102077.jpg', category: 'Gaming' },
+  { label: 'Level Up Pass (লেভেল আপ পাস)', url: '/src/assets/images/ff_levelup_pass_1790099113083.jpg', category: 'Gaming' },
+  { label: 'TikTok Video Like (ভিডিও লাইক)', url: '/src/assets/images/tiktok_like_cover_1790098978170.jpg', category: 'TikTok' },
+  { label: 'TikTok Followers (ফলোয়ার্স)', url: '/src/assets/images/tiktok_followers_cover_1790098990397.jpg', category: 'TikTok' },
+  { label: 'Facebook Page Likes (পেজ লাইক)', url: '/src/assets/images/facebook_page_cover_1790099001864.jpg', category: 'Facebook' },
+  { label: 'Facebook Post React (পোস্ট রিঅ্যাক্ট)', url: '/src/assets/images/facebook_react_cover_1790099014624.jpg', category: 'Facebook' },
+  { label: 'Facebook Video Views (ভিডিও ভিউজ)', url: '/src/assets/images/facebook_views_cover_1790099026190.jpg', category: 'Facebook' },
+  { label: 'Facebook Profile Followers (আইডি ফলোয়ার্স)', url: '/src/assets/images/facebook_id_followers_1790099038810.jpg', category: 'Facebook' }
 ];

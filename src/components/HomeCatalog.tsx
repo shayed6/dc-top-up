@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { TopUpProduct } from '../types';
 import { SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from '../data/initialData';
 import { 
   Search, X, Gamepad2, Sparkles, 
   ArrowUpDown, Zap, ShieldCheck, MessageCircle, PlusCircle, 
-  ShoppingBag, ArrowRight, Tag, RefreshCw, Video, ThumbsUp, ExternalLink
+  ShoppingBag, ArrowRight, Tag, RefreshCw, Video, ThumbsUp, ExternalLink,
+  Megaphone, Bell, ChevronLeft, ChevronRight, AlertTriangle, AlertCircle, Info, Flame
 } from 'lucide-react';
 
 interface HomeCatalogProps {
@@ -13,11 +14,37 @@ interface HomeCatalogProps {
 }
 
 export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => {
-  const { products, currentUser, setActiveTab } = useApp();
+  const { products, currentUser, setActiveTab, notice, banners, showToast } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'gaming' | 'tiktok' | 'facebook'>('all');
   const [selectedSubGenre, setSelectedSubGenre] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'popular' | 'price_asc' | 'price_desc' | 'name_asc'>('popular');
+  const [activeBannerIdx, setActiveBannerIdx] = useState(0);
+  const [isNoticeDismissed, setIsNoticeDismissed] = useState(false);
+
+  // Active banners
+  const activeBanners = useMemo(() => {
+    return banners.filter((b) => b.isActive);
+  }, [banners]);
+
+  // Auto-cycle banners
+  useEffect(() => {
+    if (activeBanners.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveBannerIdx((prev) => (prev + 1) % activeBanners.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [activeBanners.length]);
+
+  const handleNextBanner = () => {
+    if (activeBanners.length <= 1) return;
+    setActiveBannerIdx((prev) => (prev + 1) % activeBanners.length);
+  };
+
+  const handlePrevBanner = () => {
+    if (activeBanners.length <= 1) return;
+    setActiveBannerIdx((prev) => (prev - 1 + activeBanners.length) % activeBanners.length);
+  };
 
   const categories = [
     { id: 'all' as const, label: 'সবকিছু', labelEn: 'All (13)', icon: Sparkles },
@@ -137,6 +164,167 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
 
   return (
     <div className="space-y-6 pb-20 md:pb-10 bg-white text-black">
+      {/* App Home Announcement Notice */}
+      {notice?.isActive && notice?.text && !isNoticeDismissed && (
+        <div
+          id="home-announcement-notice-bar"
+          className={`rounded-2xl p-3.5 sm:p-4 border transition-all animate-in fade-in shadow-xs flex items-start sm:items-center justify-between gap-3 ${
+            notice.type === 'urgent'
+              ? 'bg-rose-50 border-rose-300 text-rose-950'
+              : notice.type === 'offer'
+              ? 'bg-amber-50 border-amber-300 text-amber-950'
+              : notice.type === 'warning'
+              ? 'bg-orange-50 border-orange-300 text-orange-950'
+              : 'bg-blue-50 border-blue-300 text-blue-950'
+          }`}
+        >
+          <div className="flex items-start sm:items-center gap-3">
+            <div
+              className={`p-2 rounded-xl shrink-0 ${
+                notice.type === 'urgent'
+                  ? 'bg-rose-600 text-white animate-pulse'
+                  : notice.type === 'offer'
+                  ? 'bg-amber-500 text-black'
+                  : notice.type === 'warning'
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-blue-600 text-white'
+              }`}
+            >
+              {notice.type === 'urgent' && <Megaphone className="w-4 h-4" />}
+              {notice.type === 'offer' && <Flame className="w-4 h-4" />}
+              {notice.type === 'warning' && <AlertTriangle className="w-4 h-4" />}
+              {notice.type === 'info' && <Info className="w-4 h-4" />}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-black/10 tracking-wider">
+                  {notice.type === 'urgent'
+                    ? 'জরুরি নোটিশ 🚨'
+                    : notice.type === 'offer'
+                    ? 'স্পেশাল অফার 🔥'
+                    : notice.type === 'warning'
+                    ? 'ওয়ার্নিং বার্তা ⚠️'
+                    : 'অফিসিয়াল ঘোষণা 📢'}
+                </span>
+                {notice.updatedAt && (
+                  <span className="text-[11px] opacity-75 font-mono">{notice.updatedAt}</span>
+                )}
+              </div>
+              <p className="text-xs sm:text-sm font-bold mt-0.5 leading-snug">
+                {notice.text}
+              </p>
+            </div>
+          </div>
+          <button
+            id="dismiss-notice-btn"
+            onClick={() => setIsNoticeDismissed(true)}
+            className="p-1.5 rounded-lg hover:bg-black/10 text-current transition-colors shrink-0 cursor-pointer"
+            title="নোটিশ লুকান"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Promotional Banner Carousel Slider */}
+      {activeBanners.length > 0 && (
+        <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-950 text-white shadow-md group">
+          {(() => {
+            const banner = activeBanners[activeBannerIdx] || activeBanners[0];
+            return (
+              <div className="relative min-h-[170px] sm:min-h-[200px] flex items-center p-5 sm:p-7 overflow-hidden">
+                {/* Background Image with Overlay */}
+                <img
+                  src={banner.imageUrl}
+                  alt={banner.title}
+                  className="absolute inset-0 w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-700 opacity-40"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 to-transparent" />
+
+                {/* Slide Content */}
+                <div className="relative z-10 max-w-xl space-y-2">
+                  {banner.badge && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-400 text-black text-[10px] font-extrabold tracking-wide shadow-xs uppercase">
+                      <Sparkles className="w-3 h-3 text-black" />
+                      <span>{banner.badge}</span>
+                    </span>
+                  )}
+                  <h3 className="text-lg sm:text-2xl font-black text-white leading-tight">
+                    {banner.title}
+                  </h3>
+                  {banner.subtitle && (
+                    <p className="text-xs sm:text-sm text-slate-300 font-medium line-clamp-2 max-w-md">
+                      {banner.subtitle}
+                    </p>
+                  )}
+                  <div className="pt-1.5 flex items-center gap-2">
+                    <button
+                      id={`banner-action-btn-${banner.id}`}
+                      onClick={() => {
+                        if (banner.actionTab === 'deposit') setActiveTab('deposit');
+                        else if (banner.actionTab === 'orders') setActiveTab('orders');
+                        else {
+                          const catalogEl = document.getElementById('catalog-search-input');
+                          if (catalogEl) catalogEl.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                      className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-black font-extrabold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer transform active:scale-95"
+                    >
+                      <span>{banner.actionText || 'অফার দেখুন'}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Slide Thumbnail Preview on right */}
+                <div className="hidden sm:block absolute right-6 top-1/2 -translate-y-1/2 w-32 h-32 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl shrink-0 bg-slate-800">
+                  <img
+                    src={banner.imageUrl}
+                    alt={banner.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Prev/Next arrows if multiple */}
+          {activeBanners.length > 1 && (
+            <>
+              <button
+                id="banner-prev-btn"
+                onClick={handlePrevBanner}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/60 hover:bg-black text-white border border-white/20 backdrop-blur-xs transition-all z-20 cursor-pointer shadow-md"
+                title="আগের ব্যানার"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                id="banner-next-btn"
+                onClick={handleNextBanner}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/60 hover:bg-black text-white border border-white/20 backdrop-blur-xs transition-all z-20 cursor-pointer shadow-md"
+                title="পরের ব্যানার"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              {/* Indicator dots */}
+              <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20">
+                {activeBanners.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveBannerIdx(i)}
+                    className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                      i === activeBannerIdx ? 'w-5 bg-white' : 'w-1.5 bg-white/40'
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Hero: Wallet & Instant Top-Up Banner */}
       <div className="rounded-2xl bg-gradient-to-br from-slate-50 via-white to-slate-100 border border-slate-200 p-4 sm:p-6 shadow-sm relative overflow-hidden">
         {/* Subtle decorative glow */}
@@ -510,9 +698,22 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
                     src={product.image}
                     alt={product.title}
                     referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                    className={`w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300 ${
+                      product.isOutOfStock ? 'grayscale-50 opacity-70' : ''
+                    }`}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+
+                  {/* Out of Stock Overlay */}
+                  {product.isOutOfStock && (
+                    <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px] flex flex-col items-center justify-center p-3 text-center z-10">
+                      <span className="px-3 py-1 rounded-full bg-rose-600 text-white text-xs font-black tracking-wider uppercase shadow-lg border border-rose-400 flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        <span>স্টক শেষ (Stock Out)</span>
+                      </span>
+                      <p className="text-[10px] text-white/95 font-bold mt-1.5">বর্তমানে সাময়িকভাবে অনুপলব্ধ</p>
+                    </div>
+                  )}
 
                   {/* Top Left Badge */}
                   <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
@@ -551,9 +752,14 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
                     {product.packages.slice(0, 3).map((pkg) => (
                       <span
                         key={pkg.id}
-                        className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-black border border-slate-300"
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                          pkg.isOutOfStock
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : 'bg-slate-100 text-black border border-slate-300'
+                        }`}
                       >
                         {pkg.amount} • ৳{pkg.price}
+                        {pkg.isOutOfStock && ' (স্টক আউট)'}
                       </span>
                     ))}
                     {product.packages.length > 3 && (
@@ -572,13 +778,19 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
                       </span>
                     </div>
 
-                    <button
-                      id={`buy-btn-${product.id}`}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-black hover:bg-slate-800 text-white font-bold text-xs transition-all shadow-xs"
-                    >
-                      <span>{isSocial ? 'অর্ডার করুন' : 'টপ-আপ করুন'}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
+                    {product.isOutOfStock ? (
+                      <span className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-100 text-rose-800 font-extrabold text-xs border border-rose-300">
+                        <span>স্টক আউট</span>
+                      </span>
+                    ) : (
+                      <button
+                        id={`buy-btn-${product.id}`}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-black hover:bg-slate-800 text-white font-bold text-xs transition-all shadow-xs"
+                      >
+                        <span>{isSocial ? 'অর্ডার করুন' : 'টপ-আপ করুন'}</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

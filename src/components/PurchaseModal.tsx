@@ -30,12 +30,18 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
   const [purchaseSuccessOrder, setPurchaseSuccessOrder] = useState<any>(null);
   const [showUidGuide, setShowUidGuide] = useState(false);
 
-  const price = selectedPackage.price;
+  const price = selectedPackage?.price || 0;
+  const isOutOfStock = Boolean(product.isOutOfStock || selectedPackage?.isOutOfStock);
   const currentBalance = currentUser.walletBalance;
   const isInsufficient = currentBalance < price;
   const shortage = isInsufficient ? price - currentBalance : 0;
 
   const handleConfirmPurchase = () => {
+    if (isOutOfStock) {
+      showToast('দুঃখিত, এই প্যাকেজটি বর্তমানে স্টক আউট।', 'error');
+      return;
+    }
+
     if (!playerId || playerId.trim().length < 5) {
       showToast(`অনুগ্রহ করে সঠিক ${product.playerIdLabel} প্রদান করুন।`, 'error');
       return;
@@ -56,6 +62,8 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
 
     if (result.success && result.order) {
       setPurchaseSuccessOrder(result.order);
+    } else if (result.error) {
+      showToast(result.error, 'error');
     }
     setIsSubmitting(false);
   };
@@ -229,6 +237,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
               <div className="grid grid-cols-2 gap-2.5">
                 {product.packages.map((pkg) => {
                   const isSelected = selectedPackage.id === pkg.id;
+                  const pkgOutOfStock = Boolean(product.isOutOfStock || pkg.isOutOfStock);
                   return (
                     <button
                       key={pkg.id}
@@ -236,16 +245,22 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
                       id={`package-btn-${pkg.id}`}
                       onClick={() => setSelectedPackage(pkg)}
                       className={`p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between cursor-pointer ${
-                        isSelected
+                        pkgOutOfStock
+                          ? 'bg-rose-50/50 border-rose-200 text-slate-700 opacity-90'
+                          : isSelected
                           ? 'bg-slate-50 border-black text-black shadow-xs ring-2 ring-black'
                           : 'bg-white border-slate-300 text-black hover:bg-slate-50'
                       }`}
                     >
-                      {pkg.popular && (
+                      {pkgOutOfStock ? (
+                        <span className="absolute -top-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-rose-600 text-white shadow-xs">
+                          স্টক আউট
+                        </span>
+                      ) : pkg.popular ? (
                         <span className="absolute -top-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-400 text-black shadow-xs">
                           জনপ্রিয়
                         </span>
-                      )}
+                      ) : null}
 
                       <div className="font-bold text-xs sm:text-sm text-black flex items-center gap-1">
                         <span>{pkg.amount}</span>
@@ -334,19 +349,30 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
               <button
                 id="confirm-purchase-btn"
                 type="button"
-                disabled={isInsufficient || isSubmitting}
+                disabled={isOutOfStock || isInsufficient || isSubmitting}
                 onClick={handleConfirmPurchase}
                 className="w-full py-3.5 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold text-sm shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed transform active:scale-[0.99] cursor-pointer"
               >
-                <ShieldCheck className="w-4 h-4 stroke-[2.5]" />
-                <span>
-                  {isInsufficient
-                    ? 'অপর্যাপ্ত ব্যালেন্স - টাকা যোগ করুন'
-                    : `ওয়ালেট দিয়ে অর্ডার কনফার্ম করুন (৳ ${price})`}
-                </span>
+                {isOutOfStock ? (
+                  <>
+                    <AlertTriangle className="w-4 h-4 text-rose-400" />
+                    <span>বর্তমানে স্টক আউট (Out of Stock)</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4 stroke-[2.5]" />
+                    <span>
+                      {isInsufficient
+                        ? 'অপর্যাপ্ত ব্যালেন্স - টাকা যোগ করুন'
+                        : `ওয়ালেট দিয়ে অর্ডার কনফার্ম করুন (৳ ${price})`}
+                    </span>
+                  </>
+                )}
               </button>
               <p className="text-center text-[11px] text-slate-800 font-medium mt-2">
-                অর্ডার নিশ্চিত করার সাথে সাথে ওয়ালেট থেকে ৳ {price} কর্তন করা হবে।
+                {isOutOfStock
+                  ? 'এই প্যাকেজটি বর্তমানে পাওয়া যাচ্ছে না। এডমিন স্টক রিস্টক করলে আবার কেনা যাবে।'
+                  : `অর্ডার নিশ্চিত করার সাথে সাথে ওয়ালেট থেকে ৳ ${price} কর্তন করা হবে।`}
               </p>
             </div>
           </div>
