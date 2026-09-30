@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, DepositRequest, Order, OrderStatus, TopUpProduct, PaymentMethodType, AppNotice, HomeBanner } from '../types';
 import { INITIAL_USER, ADMIN_USER, INITIAL_PRODUCTS, INITIAL_DEPOSITS, INITIAL_ORDERS, INITIAL_NOTICE, INITIAL_BANNERS } from '../data/initialData';
 
-export type ActiveTab = 'home' | 'deposit' | 'orders' | 'profile' | 'admin';
+export type ActiveTab = 'home' | 'deposit' | 'orders' | 'profile' | 'admin' | 'login';
 
 interface ToastInfo {
   id: string;
@@ -39,6 +39,9 @@ interface AppContextType {
   deleteBanner: (bannerId: string) => void;
 
   // Auth
+  loginWithGoogle: (name?: string, email?: string, photoURL?: string) => void;
+  signupWithEmail: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   loginWithPhone: (phone: string, name?: string) => void;
   logout: () => void;
   
@@ -164,6 +167,134 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 4000);
   };
 
+  const loginWithGoogle = (name?: string, email?: string, photoURL?: string) => {
+    const googleUserEmail = email || 'shayedafride24@gmail.com';
+    const googleUserName = name || 'সায়েদ আফ্রিদী';
+    const googlePhoto = photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80';
+
+    try {
+      const savedAccountsStr = localStorage.getItem('dc_accounts');
+      const accounts: Record<string, User> = savedAccountsStr ? JSON.parse(savedAccountsStr) : {};
+
+      let user: User;
+      if (accounts[googleUserEmail]) {
+        user = accounts[googleUserEmail];
+      } else {
+        user = {
+          id: 'usr_g_' + Math.random().toString(36).substring(2, 9),
+          name: googleUserName,
+          email: googleUserEmail,
+          photoURL: googlePhoto,
+          phone: '01845-735906',
+          walletBalance: 420.00,
+          role: 'customer',
+          status: 'active',
+          joinedAt: new Date().toISOString().split('T')[0],
+          savedGameUid: '2847591028'
+        };
+        accounts[googleUserEmail] = user;
+        localStorage.setItem('dc_accounts', JSON.stringify(accounts));
+      }
+      setCurrentUser(user);
+    } catch {
+      const user: User = {
+        id: 'usr_g_' + Math.random().toString(36).substring(2, 9),
+        name: googleUserName,
+        email: googleUserEmail,
+        photoURL: googlePhoto,
+        phone: '01845-735906',
+        walletBalance: 420.00,
+        role: 'customer',
+        status: 'active',
+        joinedAt: new Date().toISOString().split('T')[0],
+        savedGameUid: '2847591028'
+      };
+      setCurrentUser(user);
+    }
+    showToast(`স্বাগতম, ${googleUserName}! Google অ্যাকাউন্ট দিয়ে লগইন সফল হয়েছে।`, 'success');
+  };
+
+  const signupWithEmail = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    if (!name.trim()) return { success: false, error: 'আপনার পুরো নাম লিখুন।' };
+    if (!email.trim() || !email.includes('@')) return { success: false, error: 'সঠিক ইমেইল ঠিকানা দিন।' };
+    if (!password || password.length < 6) return { success: false, error: 'পাসওয়ার্ড খুব দুর্বল, কমপক্ষে ৬ ক্যারেক্টার দিন।' };
+
+    try {
+      const savedAccountsStr = localStorage.getItem('dc_accounts');
+      const accounts: Record<string, User & { password?: string }> = savedAccountsStr ? JSON.parse(savedAccountsStr) : {};
+
+      const cleanEmail = email.toLowerCase().trim();
+      if (accounts[cleanEmail]) {
+        return { success: false, error: 'এই ইমেইল দিয়ে আগে থেকেই অ্যাকাউন্ট আছে।' };
+      }
+
+      const newUser: User & { password?: string } = {
+        id: 'usr_em_' + Math.random().toString(36).substring(2, 9),
+        name: name.trim(),
+        email: cleanEmail,
+        phone: '017' + Math.floor(10000000 + Math.random() * 90000000),
+        walletBalance: 150.00, // Welcome signup bonus
+        role: 'customer',
+        status: 'active',
+        joinedAt: new Date().toISOString().split('T')[0],
+        savedGameUid: '',
+        password: password
+      };
+
+      accounts[cleanEmail] = newUser;
+      localStorage.setItem('dc_accounts', JSON.stringify(accounts));
+
+      const { password: _, ...userWithoutPassword } = newUser;
+      setCurrentUser(userWithoutPassword);
+      showToast(`অভিনন্দন ${name}! আপনার অ্যাকাউন্ট তৈরি হয়েছে এবং লগইন সম্পন্ন হয়েছে।`, 'success');
+      return { success: true };
+    } catch {
+      return { success: false, error: 'অ্যাকাউন্ট তৈরি করা যায়নি, আবার চেষ্টা করুন।' };
+    }
+  };
+
+  const loginWithEmail = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    if (!email.trim() || !password) return { success: false, error: 'ইমেইল এবং পাসওয়ার্ড পূরণ করুন।' };
+
+    try {
+      const savedAccountsStr = localStorage.getItem('dc_accounts');
+      const accounts: Record<string, User & { password?: string }> = savedAccountsStr ? JSON.parse(savedAccountsStr) : {};
+
+      const cleanEmail = email.toLowerCase().trim();
+      const account = accounts[cleanEmail];
+
+      if (!account) {
+        // Create active customer account
+        const newUser: User = {
+          id: 'usr_' + Math.random().toString(36).substring(2, 9),
+          name: cleanEmail.split('@')[0],
+          email: cleanEmail,
+          phone: '01712-345678',
+          walletBalance: 200.00,
+          role: 'customer',
+          status: 'active',
+          joinedAt: new Date().toISOString().split('T')[0],
+        };
+        accounts[cleanEmail] = { ...newUser, password };
+        localStorage.setItem('dc_accounts', JSON.stringify(accounts));
+        setCurrentUser(newUser);
+        showToast(`স্বাগতম! নতুন অ্যাকাউন্ট সফলভাবে তৈরি ও লগইন হয়েছে।`, 'success');
+        return { success: true };
+      }
+
+      if (account.password && account.password !== password) {
+        return { success: false, error: 'পাসওয়ার্ড সঠিক নয়, আবার চেষ্টা করুন।' };
+      }
+
+      const { password: _, ...userWithoutPassword } = account;
+      setCurrentUser(userWithoutPassword);
+      showToast(`স্বাগতম, ${userWithoutPassword.name}! লগইন সফল হয়েছে।`, 'success');
+      return { success: true };
+    } catch {
+      return { success: false, error: 'লগইন ব্যর্থ হয়েছে, আবার চেষ্টা করুন।' };
+    }
+  };
+
   const loginWithPhone = (phone: string, name?: string) => {
     const user: User = {
       id: 'usr_' + phone.replace(/[^0-9]/g, '').slice(-6),
@@ -171,7 +302,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       phone,
       email: `${phone.replace(/[^0-9]/g, '').slice(-6)}@gamer.bd`,
       walletBalance: 250.00,
-      role: 'user',
+      role: 'customer',
+      status: 'active',
       joinedAt: new Date().toISOString().split('T')[0],
       savedGameUid: ''
     };
@@ -525,6 +657,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addBanner,
         updateBanner,
         deleteBanner,
+        loginWithGoogle,
+        signupWithEmail,
+        loginWithEmail,
         loginWithPhone,
         logout,
         updateUserProfile,

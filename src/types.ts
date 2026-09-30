@@ -92,11 +92,13 @@ export interface User {
   name: string;
   phone: string;
   email?: string;
+  photoURL?: string;
   walletBalance: number;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'customer';
   joinedAt: string;
   avatarUrl?: string;
   savedGameUid?: string;
+  status?: string;
 }
 
 export interface PaymentAccountInfo {

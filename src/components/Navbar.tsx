@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from '../data/initialData';
-import { Wallet, PlusCircle, ShieldCheck, User, LogOut, ChevronDown, Gamepad2, ShoppingBag, MessageCircle } from 'lucide-react';
+import { Wallet, PlusCircle, ShieldCheck, User, LogOut, ChevronDown, Gamepad2, ShoppingBag, MessageCircle, LogIn } from 'lucide-react';
 
 interface NavbarProps {
   onOpenAuth: () => void;
@@ -105,6 +105,22 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
           >
             <User className="w-4 h-4 text-purple-600" />
             <span>প্রোফাইল</span>
+          </button>
+
+          <button
+            id="nav-desktop-auth-btn"
+            onClick={() => {
+              setIsAdminMode(false);
+              setActiveTab('login');
+            }}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === 'login' && !isAdminMode
+                ? 'bg-white text-black shadow-xs border border-slate-200'
+                : 'text-black hover:bg-white/60'
+            }`}
+          >
+            <LogIn className="w-4 h-4 text-[#E0A500]" />
+            <span>লগইন / সাইন-আপ</span>
           </button>
         </nav>
 
@@ -240,13 +256,14 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
                   <button
                     id="profile-dropdown-switch-user"
                     onClick={() => {
-                      onOpenAuth();
+                      setIsAdminMode(false);
+                      setActiveTab('login');
                       setProfileDropdownOpen(false);
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-xs text-black font-semibold hover:bg-slate-100 rounded-lg text-left"
                   >
-                    <User className="w-3.5 h-3.5 text-teal-600" />
-                    <span>অন্য ফোন নম্বরে লগইন</span>
+                    <LogIn className="w-3.5 h-3.5 text-[#E0A500]" />
+                    <span>লগইন ও সাইন-আপ সেকশন</span>
                   </button>
                   <a
                     id="profile-dropdown-whatsapp"

@@ -1,10 +1,31 @@
 @import "tailwindcss";
 
+:root {
+  --page-bg: #FFFFFF;
+  --panel: #F7F7FA;
+  --navy-2: #FFFFFF;
+  --gold: #E0A500;
+  --gold-dim: #B98A00;
+  --ink: #14162E;
+  --muted: #6B6F8C;
+  --line: rgba(20,22,46,0.10);
+  --red: #D3453A;
+  --green: #1F9D6B;
+}
+
+.font-sora {
+  font-family: 'Sora', 'Outfit', sans-serif;
+}
+
+.font-inter {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
 @layer base {
   body {
     background-color: #ffffff;
     color: #000000;
-    font-family: 'Hind Siliguri', 'Outfit', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', 'Hind Siliguri', 'Outfit', system-ui, -apple-system, sans-serif;
     -webkit-tap-highlight-color: transparent;
   }
 }

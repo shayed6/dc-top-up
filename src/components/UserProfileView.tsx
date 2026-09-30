@@ -148,7 +148,15 @@ export const UserProfileView: React.FC = () => {
           </div>
 
           {/* Quick Header Actions */}
-          <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end">
+          <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto justify-end">
+            <button
+              id="profile-switch-account-btn"
+              onClick={() => setActiveTab('login')}
+              className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+            >
+              <span>লগইন / নতুন অ্যাকাউন্ট</span>
+            </button>
+
             <button
               id="profile-edit-trigger-btn"
               onClick={() => {
