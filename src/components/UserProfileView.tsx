@@ -99,16 +99,10 @@ export const UserProfileView: React.FC = () => {
                 <h2 className="text-xl sm:text-2xl font-black text-black tracking-tight">
                   {currentUser.name}
                 </h2>
-                {currentUser.role === 'admin' ? (
-                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-black text-white">
-                    এডমিন
-                  </span>
-                ) : (
-                  <span className="text-[11px] text-emerald-800 font-bold flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>ভেরিফাইড গেমার অ্যাকাউন্ট</span>
-                  </span>
-                )}
+                <span className="text-[11px] text-emerald-800 font-bold flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>ভেরিফাইড অ্যাকাউন্ট</span>
+                </span>
               </div>
 
               {/* Clean typographic metadata without static pills */}

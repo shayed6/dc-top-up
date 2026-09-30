@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
@@ -12,48 +12,93 @@ import { AddMoneyView } from './components/AddMoneyView';
 import { OrdersView } from './components/OrdersView';
 import { UserProfileView } from './components/UserProfileView';
 import { AuthSection } from './components/AuthSection';
-import { AdminDashboard } from './components/AdminDashboard';
+import { AdminPortalPage } from './components/AdminPortalPage';
 import { PurchaseModal } from './components/PurchaseModal';
 import { AuthModal } from './components/AuthModal';
 import { ToastContainer } from './components/ToastContainer';
 import { TopUpProduct } from './types';
-import { ShieldCheck, Zap, Headphones, Heart, MessageCircle } from 'lucide-react';
+import { ShieldCheck, Zap, Headphones, MessageCircle } from 'lucide-react';
 import { SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from './data/initialData';
 
-const MainLayout: React.FC = () => {
-  const { activeTab, setActiveTab, isAdminMode, selectedProduct, setSelectedProduct } = useApp();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+const checkIsAdminRoute = () => {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname.toLowerCase();
+  const hash = window.location.hash.toLowerCase();
+  const search = window.location.search.toLowerCase();
+  return (
+    path.startsWith('/admin') ||
+    hash.startsWith('#/admin') ||
+    hash.startsWith('#admin') ||
+    search.includes('page=admin') ||
+    search.includes('admin=true')
+  );
+};
 
+const MainLayout: React.FC = () => {
+  const { activeTab, setActiveTab, selectedProduct, setSelectedProduct } = useApp();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isAdminRoute, setIsAdminRoute] = useState<boolean>(() => checkIsAdminRoute());
+
+  // Listen to browser navigation (back/forward and hash changes)
+  useEffect(() => {
+    const handleUrlChange = () => {
+      setIsAdminRoute(checkIsAdminRoute());
+    };
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+    };
+  }, []);
+
+  const navigateToStore = () => {
+    if (window.location.pathname.startsWith('/admin')) {
+      window.history.pushState({}, '', '/');
+    } else if (window.location.hash.includes('admin')) {
+      window.location.hash = '';
+    } else {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('page');
+      url.searchParams.delete('admin');
+      window.history.pushState({}, '', url.toString());
+    }
+    setIsAdminRoute(false);
+  };
+
+  // If visiting /admin or #/admin, render exclusively the isolated Admin Portal
+  if (isAdminRoute) {
+    return (
+      <div className="min-h-screen bg-slate-100 text-black flex flex-col font-sans">
+        <ToastContainer />
+        <AdminPortalPage onExit={navigateToStore} />
+      </div>
+    );
+  }
+
+  // Regular user-facing layout (zero admin badges, buttons, or links)
   return (
     <div className="min-h-screen bg-white text-black flex flex-col font-sans selection:bg-emerald-500/20 selection:text-emerald-950">
       <ToastContainer />
 
-      {/* Top Navigation Bar */}
+      {/* Top Navigation Bar - Regular user navigation only */}
       <Navbar onOpenAuth={() => setIsAuthModalOpen(true)} />
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-5 sm:pt-7">
-        {isAdminMode ? (
-          <AdminDashboard />
-        ) : (
-          <>
-            {activeTab === 'home' && (
-              <HomeCatalog
-                onSelectProduct={(product: TopUpProduct) => setSelectedProduct(product)}
-              />
-            )}
-
-            {activeTab === 'deposit' && <AddMoneyView />}
-
-            {activeTab === 'orders' && <OrdersView />}
-
-            {activeTab === 'profile' && <UserProfileView />}
-
-            {activeTab === 'login' && <AuthSection />}
-
-            {activeTab === 'admin' && <AdminDashboard />}
-          </>
+        {activeTab === 'home' && (
+          <HomeCatalog
+            onSelectProduct={(product: TopUpProduct) => setSelectedProduct(product)}
+          />
         )}
+
+        {activeTab === 'deposit' && <AddMoneyView />}
+
+        {activeTab === 'orders' && <OrdersView />}
+
+        {activeTab === 'profile' && <UserProfileView />}
+
+        {activeTab === 'login' && <AuthSection />}
       </main>
 
       {/* Purchase Modal / Checkout Drawer */}

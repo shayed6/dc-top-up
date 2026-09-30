@@ -31,7 +31,7 @@ export const AdminDashboard: React.FC = () => {
     updateBanner,
     deleteBanner,
     showToast,
-    resetToSampleData
+    currentUser
   } = useApp();
 
   const [currentAdminTab, setCurrentAdminTab] = useState<
@@ -158,13 +158,13 @@ export const AdminDashboard: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={resetToSampleData}
-          className="self-start md:self-center px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-black border border-slate-300 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          <span>ডেমো ডেটা রিসেট</span>
-        </button>
+        <div className="flex items-center gap-3 self-start md:self-center px-4 py-2.5 rounded-xl bg-white border border-slate-300 text-xs shadow-xs">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+          <div>
+            <span className="text-slate-600 block text-[10px] uppercase font-bold tracking-wide">কাস্টমার ওয়ালেট (লাইভ)</span>
+            <span className="font-extrabold text-black text-sm">৳ {currentUser.walletBalance.toFixed(2)}</span>
+          </div>
+        </div>
       </div>
 
       {/* Stats Overview Grid */}

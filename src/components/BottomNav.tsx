@@ -1,25 +1,21 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Gamepad2, PlusCircle, ShoppingBag, ShieldCheck, User } from 'lucide-react';
+import { Gamepad2, PlusCircle, ShoppingBag, User } from 'lucide-react';
 
 export const BottomNav: React.FC = () => {
-  const { activeTab, setActiveTab, isAdminMode, setIsAdminMode, deposits, orders } = useApp();
+  const { activeTab, setActiveTab, orders } = useApp();
 
-  const pendingDepositsCount = deposits.filter((d) => d.status === 'pending').length;
   const activeOrdersCount = orders.filter((o) => o.status === 'pending' || o.status === 'processing').length;
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 px-1 py-1.5 pb-safe shadow-lg text-black">
-      <div className="flex items-center justify-around">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200 px-2 py-1.5 pb-safe shadow-lg text-black">
+      <div className="flex items-center justify-around max-w-md mx-auto">
         {/* Home */}
         <button
           id="mobile-nav-home-btn"
-          onClick={() => {
-            setIsAdminMode(false);
-            setActiveTab('home');
-          }}
-          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'home' && !isAdminMode
+          onClick={() => setActiveTab('home')}
+          className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'home'
               ? 'text-emerald-800 font-extrabold'
               : 'text-black hover:text-emerald-700 font-semibold'
           }`}
@@ -31,12 +27,9 @@ export const BottomNav: React.FC = () => {
         {/* Add Money - Hero Button */}
         <button
           id="mobile-nav-deposit-btn"
-          onClick={() => {
-            setIsAdminMode(false);
-            setActiveTab('deposit');
-          }}
-          className={`relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'deposit' && !isAdminMode
+          onClick={() => setActiveTab('deposit')}
+          className={`relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'deposit'
               ? 'text-emerald-800 font-extrabold'
               : 'text-black hover:text-emerald-700 font-semibold'
           }`}
@@ -51,12 +44,9 @@ export const BottomNav: React.FC = () => {
         {/* Orders */}
         <button
           id="mobile-nav-orders-btn"
-          onClick={() => {
-            setIsAdminMode(false);
-            setActiveTab('orders');
-          }}
-          className={`relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'orders' && !isAdminMode
+          onClick={() => setActiveTab('orders')}
+          className={`relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'orders'
               ? 'text-blue-900 font-extrabold'
               : 'text-black hover:text-blue-700 font-semibold'
           }`}
@@ -75,42 +65,15 @@ export const BottomNav: React.FC = () => {
         {/* Profile */}
         <button
           id="mobile-nav-profile-btn"
-          onClick={() => {
-            setIsAdminMode(false);
-            setActiveTab('profile');
-          }}
-          className={`relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'profile' && !isAdminMode
+          onClick={() => setActiveTab('profile')}
+          className={`relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'profile'
               ? 'text-purple-900 font-extrabold'
               : 'text-black hover:text-purple-700 font-semibold'
           }`}
         >
           <User className="w-5 h-5 mb-0.5 text-purple-700" />
           <span className="text-[10px] leading-tight">প্রোফাইল</span>
-        </button>
-
-        {/* Admin Dashboard */}
-        <button
-          id="mobile-nav-admin-btn"
-          onClick={() => {
-            setIsAdminMode(true);
-            setActiveTab('admin');
-          }}
-          className={`relative flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all cursor-pointer ${
-            isAdminMode
-              ? 'text-amber-900 font-extrabold'
-              : 'text-black hover:text-amber-700 font-semibold'
-          }`}
-        >
-          <div className="relative">
-            <ShieldCheck className="w-5 h-5 mb-0.5 text-amber-700" />
-            {pendingDepositsCount > 0 && (
-              <span className="absolute -top-1 -right-2 w-4 h-4 rounded-full bg-amber-500 text-black font-extrabold text-[9px] flex items-center justify-center animate-pulse">
-                {pendingDepositsCount}
-              </span>
-            )}
-          </div>
-          <span className="text-[10px] leading-tight">এডমিন</span>
         </button>
       </div>
     </nav>

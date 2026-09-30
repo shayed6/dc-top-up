@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from '../data/initialData';
-import { Wallet, PlusCircle, ShieldCheck, User, LogOut, ChevronDown, Gamepad2, ShoppingBag, MessageCircle, LogIn } from 'lucide-react';
+import { Wallet, PlusCircle, User, LogOut, ChevronDown, Gamepad2, ShoppingBag, MessageCircle, LogIn } from 'lucide-react';
 
 interface NavbarProps {
   onOpenAuth: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
-  const { currentUser, isAdminMode, setIsAdminMode, activeTab, setActiveTab, logout, deposits } = useApp();
+  const { currentUser, activeTab, setActiveTab, logout } = useApp();
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
-
-  const pendingDepositsCount = deposits.filter((d) => d.status === 'pending').length;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-xs">
@@ -53,7 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
             id="nav-desktop-home-btn"
             onClick={() => setActiveTab('home')}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeTab === 'home' && !isAdminMode
+              activeTab === 'home'
                 ? 'bg-white text-black shadow-xs border border-slate-200'
                 : 'text-black hover:bg-white/60'
             }`}
@@ -66,7 +64,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
             id="nav-desktop-deposit-btn"
             onClick={() => setActiveTab('deposit')}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeTab === 'deposit' && !isAdminMode
+              activeTab === 'deposit'
                 ? 'bg-white text-black shadow-xs border border-slate-200'
                 : 'text-black hover:bg-white/60'
             }`}
@@ -77,12 +75,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
 
           <button
             id="nav-desktop-orders-btn"
-            onClick={() => {
-              setIsAdminMode(false);
-              setActiveTab('orders');
-            }}
+            onClick={() => setActiveTab('orders')}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeTab === 'orders' && !isAdminMode
+              activeTab === 'orders'
                 ? 'bg-white text-black shadow-xs border border-slate-200'
                 : 'text-black hover:bg-white/60'
             }`}
@@ -93,12 +88,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
 
           <button
             id="nav-desktop-profile-btn"
-            onClick={() => {
-              setIsAdminMode(false);
-              setActiveTab('profile');
-            }}
+            onClick={() => setActiveTab('profile')}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeTab === 'profile' && !isAdminMode
+              activeTab === 'profile'
                 ? 'bg-white text-black shadow-xs border border-slate-200'
                 : 'text-black hover:bg-white/60'
             }`}
@@ -109,12 +101,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
 
           <button
             id="nav-desktop-auth-btn"
-            onClick={() => {
-              setIsAdminMode(false);
-              setActiveTab('login');
-            }}
+            onClick={() => setActiveTab('login')}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeTab === 'login' && !isAdminMode
+              activeTab === 'login'
                 ? 'bg-white text-black shadow-xs border border-slate-200'
                 : 'text-black hover:bg-white/60'
             }`}
@@ -124,7 +113,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
           </button>
         </nav>
 
-        {/* Right Section: Wallet, Admin Toggle & Profile */}
+        {/* Right Section: Wallet & Profile */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Prominent Wallet Balance Card */}
           <button
@@ -148,32 +137,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
             <div className="hidden sm:flex items-center justify-center pl-1 text-emerald-700">
               <PlusCircle className="w-4 h-4 opacity-80 group-hover:opacity-100 transition-opacity" />
             </div>
-          </button>
-
-          {/* Admin Mode Toggle Switch */}
-          <button
-            id="nav-admin-mode-toggle-btn"
-            onClick={() => {
-              const next = !isAdminMode;
-              setIsAdminMode(next);
-              if (next) setActiveTab('admin');
-              else setActiveTab('home');
-            }}
-            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border ${
-              isAdminMode
-                ? 'bg-amber-100 text-amber-950 border-amber-400 shadow-xs'
-                : 'bg-white text-black border-slate-300 hover:bg-slate-50'
-            }`}
-            title="এডমিন ড্যাশবোর্ড ও ডিপোজিট অনুমোদন সুইচ"
-          >
-            <ShieldCheck className={`w-4 h-4 ${isAdminMode ? 'text-amber-700' : 'text-slate-700'}`} />
-            <span className="hidden lg:inline">{isAdminMode ? 'এডমিন ভিউ সক্রিয়' : 'এডমিন প্যানেল'}</span>
-            <span className="lg:hidden">এডমিন</span>
-            {pendingDepositsCount > 0 && (
-              <span className="w-4 h-4 rounded-full bg-amber-500 text-black font-extrabold text-[10px] flex items-center justify-center">
-                {pendingDepositsCount}
-              </span>
-            )}
           </button>
 
           {/* 24/7 WhatsApp Support Helpline Button */}
@@ -220,7 +183,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
                   <button
                     id="profile-dropdown-my-profile"
                     onClick={() => {
-                      setIsAdminMode(false);
                       setActiveTab('profile');
                       setProfileDropdownOpen(false);
                     }}
@@ -233,7 +195,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
                   <button
                     id="profile-dropdown-add-money"
                     onClick={() => {
-                      setIsAdminMode(false);
                       setActiveTab('deposit');
                       setProfileDropdownOpen(false);
                     }}
@@ -256,7 +217,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
                   <button
                     id="profile-dropdown-switch-user"
                     onClick={() => {
-                      setIsAdminMode(false);
                       setActiveTab('login');
                       setProfileDropdownOpen(false);
                     }}

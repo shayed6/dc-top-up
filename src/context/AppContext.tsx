@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, DepositRequest, Order, OrderStatus, TopUpProduct, PaymentMethodType, AppNotice, HomeBanner } from '../types';
 import { INITIAL_USER, ADMIN_USER, INITIAL_PRODUCTS, INITIAL_DEPOSITS, INITIAL_ORDERS, INITIAL_NOTICE, INITIAL_BANNERS } from '../data/initialData';
 
-export type ActiveTab = 'home' | 'deposit' | 'orders' | 'profile' | 'admin' | 'login';
+export type ActiveTab = 'home' | 'deposit' | 'orders' | 'profile' | 'login';
 
 interface ToastInfo {
   id: string;
@@ -63,7 +63,6 @@ interface AppContextType {
   toggleProductStock: (productId: string) => void;
   togglePackageStock: (productId: string, packageId: string) => void;
   updateProductImage: (productId: string, newImageUrl: string) => void;
-  resetToSampleData: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -492,13 +491,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
     );
 
-    // If belongs to current logged in user, credit wallet immediately
-    if (deposit.userId === currentUser.id) {
-      setCurrentUser((prev) => ({
+    // Single unified data source: credit the customer's wallet balance directly
+    setCurrentUser((prev) => {
+      const updatedBalance = Number((prev.walletBalance + deposit.amount).toFixed(2));
+      return {
         ...prev,
-        walletBalance: prev.walletBalance + deposit.amount
-      }));
-    }
+        walletBalance: updatedBalance
+      };
+    });
 
     showToast(`ডিপোজিট ${deposit.id} (৳ ${deposit.amount}) অ্যাপ্রুভ করা হয়েছে! ওয়ালেটে টাকা যোগ হয়েছে।`, 'success');
   };
@@ -619,26 +619,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('ব্যানার রিমুভ করা হয়েছে!', 'info');
   };
 
-  const resetToSampleData = () => {
-    localStorage.removeItem('dc_products');
-    localStorage.removeItem('dc_deposits');
-    localStorage.removeItem('dc_orders');
-    localStorage.removeItem('dc_user');
-    localStorage.removeItem('dc_notice');
-    localStorage.removeItem('dc_banners');
-    setProducts(INITIAL_PRODUCTS);
-    setDeposits(INITIAL_DEPOSITS);
-    setOrders(INITIAL_ORDERS);
-    setCurrentUser(INITIAL_USER);
-    setNotice(INITIAL_NOTICE);
-    setBanners(INITIAL_BANNERS);
-    showToast('সব ডেমো ডেটা রিসেট হয়েছে!', 'info');
-  };
-
   return (
     <AppContext.Provider
       value={{
-        currentUser: isAdminMode ? ADMIN_USER : currentUser,
+        currentUser,
         isAdminMode,
         setIsAdminMode,
         activeTab,
@@ -675,8 +659,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteProduct,
         toggleProductStock,
         togglePackageStock,
-        updateProductImage,
-        resetToSampleData
+        updateProductImage
       }}
     >
       {children}
