@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TopUpProduct, TopUpPackage } from '../types';
+import { SafeImage } from './SafeImage';
 import { 
   X, AlertTriangle, ShieldCheck, Zap, Wallet, 
   PlusCircle, HelpCircle, CheckCircle2 
@@ -77,10 +78,11 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
         {/* Modal Header */}
         <div className="relative p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img
+            <SafeImage
               src={product.image}
               alt={product.title}
-              referrerPolicy="no-referrer"
+              title={product.title}
+              category={product.category}
               className="w-12 h-12 rounded-xl object-cover border border-slate-300 shadow-xs"
             />
             <div>

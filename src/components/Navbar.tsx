@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from '../data/initialData';
 import { Wallet, PlusCircle, User, LogOut, ChevronDown, Gamepad2, ShoppingBag, MessageCircle, LogIn } from 'lucide-react';
+import { SafeImage } from './SafeImage';
 
 interface NavbarProps {
   onOpenAuth: () => void;
@@ -22,10 +23,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
             className="flex items-center gap-2.5 text-left group focus:outline-none"
           >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-500 to-amber-400 p-0.5 shadow-md shadow-cyan-500/20 group-hover:scale-105 transition-transform overflow-hidden">
-              <img
+              <SafeImage
                 src="/dc_logo.jpg"
                 alt="DC Top Up Logo"
-                referrerPolicy="no-referrer"
                 className="w-full h-full object-cover rounded-[10px]"
               />
             </div>

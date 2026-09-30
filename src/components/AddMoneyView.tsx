@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { PAYMENT_ACCOUNTS, SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from '../data/initialData';
 import { PaymentMethodType } from '../types';
+import { SafeImage } from './SafeImage';
 import { 
   Copy, Check, CheckCircle2, 
   Wallet, ShieldAlert, Info, RefreshCw, Smartphone, MessageCircle, ExternalLink 
@@ -69,10 +70,9 @@ export const AddMoneyView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-50 border border-slate-200 shadow-xs">
         <div className="flex items-center gap-3.5">
           <div className="w-14 h-14 rounded-xl p-0.5 bg-gradient-to-tr from-cyan-500 via-blue-500 to-amber-400 shrink-0 shadow-md shadow-cyan-500/20">
-            <img
+            <SafeImage
               src="/dc_logo.jpg"
               alt="DC Wallet"
-              referrerPolicy="no-referrer"
               className="w-full h-full object-cover rounded-[10px]"
             />
           </div>
@@ -82,7 +82,7 @@ export const AddMoneyView: React.FC = () => {
               <span>ডিসি ওয়ালেটে টাকা যোগ (DC Wallet Recharge)</span>
             </h2>
             <p className="text-xs text-slate-800 mt-0.5 font-medium">
-              বিকাশ, নগদ বা রকেটে সেন্ড মানি করে ব্যালেন্স রিচার্জ করুন। ৩-৫ মিনিটে ভেরিফিকেশন সম্পন্ন হবে।
+              বিকাশ বা নগদে সেন্ড মানি করে ব্যালেন্স রিচার্জ করুন। ৩-৫ মিনিটে ভেরিফিকেশন সম্পন্ন হবে।
             </p>
           </div>
         </div>
@@ -120,7 +120,7 @@ export const AddMoneyView: React.FC = () => {
 
       {/* Main Deposit Form Container */}
       <div className="space-y-6">
-        {/* Step 1: Select Payment Method */}
+        {/* Step 1: Select Payment Method - Clean 2-column layout (bKash & Nagad only) */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200 space-y-4 shadow-xs">
           <div className="flex items-center justify-between">
             <label className="text-sm font-bold text-black flex items-center gap-2">
@@ -130,23 +130,25 @@ export const AddMoneyView: React.FC = () => {
             <span className="text-xs text-slate-800 font-bold">শুধু Send Money প্রযোজ্য</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             {/* bKash */}
             <button
               type="button"
               id="select-method-bkash"
               onClick={() => setSelectedMethod('bkash')}
-              className={`p-3.5 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer ${
+              className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all text-center cursor-pointer ${
                 selectedMethod === 'bkash'
-                  ? 'bg-rose-50 border-[#D82365] text-black shadow-xs scale-[1.02]'
+                  ? 'bg-rose-50 border-[#D82365] text-black shadow-xs scale-[1.01]'
                   : 'bg-white border-slate-300 text-black hover:bg-slate-50'
               }`}
             >
-              <div className="w-8 h-8 rounded-lg bg-[#D82365] flex items-center justify-center text-white font-extrabold text-xs shadow-xs">
+              <div className="w-10 h-10 rounded-xl bg-[#D82365] flex items-center justify-center text-white font-extrabold text-sm shadow-xs">
                 বিকাশ
               </div>
-              <span className="text-xs font-bold text-black">bKash</span>
-              <span className="text-[10px] text-slate-700 font-semibold">পার্সোনাল</span>
+              <div>
+                <span className="text-sm font-bold text-black block">bKash</span>
+                <span className="text-[11px] text-slate-600 font-semibold">পার্সোনাল সেন্ড মানি</span>
+              </div>
             </button>
 
             {/* Nagad */}
@@ -154,35 +156,19 @@ export const AddMoneyView: React.FC = () => {
               type="button"
               id="select-method-nagad"
               onClick={() => setSelectedMethod('nagad')}
-              className={`p-3.5 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer ${
+              className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all text-center cursor-pointer ${
                 selectedMethod === 'nagad'
-                  ? 'bg-orange-50 border-[#F25822] text-black shadow-xs scale-[1.02]'
+                  ? 'bg-orange-50 border-[#F25822] text-black shadow-xs scale-[1.01]'
                   : 'bg-white border-slate-300 text-black hover:bg-slate-50'
               }`}
             >
-              <div className="w-8 h-8 rounded-lg bg-[#F25822] flex items-center justify-center text-white font-extrabold text-xs shadow-xs">
+              <div className="w-10 h-10 rounded-xl bg-[#F25822] flex items-center justify-center text-white font-extrabold text-sm shadow-xs">
                 নগদ
               </div>
-              <span className="text-xs font-bold text-black">Nagad</span>
-              <span className="text-[10px] text-slate-700 font-semibold">পার্সোনাল</span>
-            </button>
-
-            {/* Rocket */}
-            <button
-              type="button"
-              id="select-method-rocket"
-              onClick={() => setSelectedMethod('rocket')}
-              className={`p-3.5 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all text-center cursor-pointer ${
-                selectedMethod === 'rocket'
-                  ? 'bg-purple-50 border-[#8C3494] text-black shadow-xs scale-[1.02]'
-                  : 'bg-white border-slate-300 text-black hover:bg-slate-50'
-              }`}
-            >
-              <div className="w-8 h-8 rounded-lg bg-[#8C3494] flex items-center justify-center text-white font-extrabold text-xs shadow-xs">
-                রকেট
+              <div>
+                <span className="text-sm font-bold text-black block">Nagad</span>
+                <span className="text-[11px] text-slate-600 font-semibold">পার্সোনাল সেন্ড মানি</span>
               </div>
-              <span className="text-xs font-bold text-black">Rocket</span>
-              <span className="text-[10px] text-slate-700 font-semibold">পার্সোনাল</span>
             </button>
           </div>
 
@@ -201,10 +187,19 @@ export const AddMoneyView: React.FC = () => {
               type="button"
               id="copy-account-number-btn"
               onClick={() => handleCopyNumber(currentAccount.number)}
-              className="px-4 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors shrink-0 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-black hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
             >
-              {copiedNumber ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-              <span>{copiedNumber ? 'কপি হয়েছে!' : 'নম্বর কপি করুন'}</span>
+              {copiedNumber ? (
+                <>
+                  <Check className="w-4 h-4 text-emerald-400" />
+                  <span>কপি হয়েছে!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 text-white" />
+                  <span>নম্বর কপি করুন</span>
+                </>
+              )}
             </button>
           </div>
 

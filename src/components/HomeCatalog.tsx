@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { TopUpProduct } from '../types';
+import { SafeImage } from './SafeImage';
 import { SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from '../data/initialData';
 import { 
   Search, X, Gamepad2, Sparkles, 
@@ -234,9 +235,10 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
             return (
               <div className="relative min-h-[170px] sm:min-h-[200px] flex items-center p-5 sm:p-7 overflow-hidden">
                 {/* Background Image with Overlay */}
-                <img
+                <SafeImage
                   src={banner.imageUrl}
                   alt={banner.title}
+                  title={banner.title}
                   className="absolute inset-0 w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-700 opacity-40"
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 to-transparent" />
@@ -694,15 +696,16 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
               >
                 {/* Thumbnail & Badges */}
                 <div className="relative h-40 w-full overflow-hidden bg-slate-100">
-                  <img
+                  <SafeImage
                     src={product.image}
                     alt={product.title}
-                    referrerPolicy="no-referrer"
+                    title={product.title}
+                    category={product.category}
                     className={`w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300 ${
                       product.isOutOfStock ? 'grayscale-50 opacity-70' : ''
                     }`}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
 
                   {/* Out of Stock Overlay */}
                   {product.isOutOfStock && (

@@ -17,6 +17,7 @@ import { PurchaseModal } from './components/PurchaseModal';
 import { AuthModal } from './components/AuthModal';
 import { ToastContainer } from './components/ToastContainer';
 import { TopUpProduct } from './types';
+import { SafeImage } from './components/SafeImage';
 import { ShieldCheck, Zap, Headphones, MessageCircle } from 'lucide-react';
 import { SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from './data/initialData';
 
@@ -128,7 +129,7 @@ const MainLayout: React.FC = () => {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-300 shadow-sm shrink-0">
-              <img src="/dc_logo.jpg" alt="DC" className="w-full h-full object-cover" />
+              <SafeImage src="/dc_logo.jpg" alt="DC" className="w-full h-full object-cover" />
             </div>
             <div>
               <p className="text-black font-bold text-sm">DC Top Up (ডিসি টপ-আপ বাংলাদেশ)</p>
@@ -163,8 +164,7 @@ const MainLayout: React.FC = () => {
           <div className="text-[11px] text-black text-center md:text-right font-medium">
             <span>পেমেন্ট পার্টনার: </span>
             <span className="text-[#D82365] font-bold">bKash</span> •{' '}
-            <span className="text-[#F25822] font-bold">Nagad</span> •{' '}
-            <span className="text-[#8C3494] font-bold">Rocket</span>
+            <span className="text-[#F25822] font-bold">Nagad</span>
           </div>
         </div>
       </footer>

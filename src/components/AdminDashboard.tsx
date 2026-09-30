@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { DepositRequest, TopUpProduct, TopUpPackage, ProductCategory, HomeBanner } from '../types';
 import { PRESET_PRODUCT_IMAGES } from '../data/initialData';
+import { SafeImage } from './SafeImage';
 import { 
   Clock, CheckCircle2, XCircle, 
   Users, ShoppingBag, Package, Plus, Trash2, AlertCircle, 
@@ -59,7 +60,7 @@ export const AdminDashboard: React.FC = () => {
   const [newProductSubCategory, setNewProductSubCategory] = useState('BD Server');
   const [newProductBadge, setNewProductBadge] = useState('নতুন অফার 🔥');
   const [newProductPlayerIdLabel, setNewProductPlayerIdLabel] = useState('Player ID (UID)');
-  const [newProductImageUrl, setNewProductImageUrl] = useState('/src/assets/images/ff_friday_offer_1790099054219.jpg');
+  const [newProductImageUrl, setNewProductImageUrl] = useState('/images/ff_friday_offer_1790099054219.jpg');
   const [newProductDescription, setNewProductDescription] = useState('');
   const [newPackageList, setNewPackageList] = useState<Array<{ name: string; amount: string; price: number; popular: boolean }>>([
     { name: '115 Diamonds', amount: '115 💎', price: 85, popular: true }
@@ -74,7 +75,7 @@ export const AdminDashboard: React.FC = () => {
   const [showAddBannerModal, setShowAddBannerModal] = useState(false);
   const [newBannerTitle, setNewBannerTitle] = useState('');
   const [newBannerSubtitle, setNewBannerSubtitle] = useState('');
-  const [newBannerImageUrl, setNewBannerImageUrl] = useState('/src/assets/images/ff_friday_offer_1790099054219.jpg');
+  const [newBannerImageUrl, setNewBannerImageUrl] = useState('/images/ff_friday_offer_1790099054219.jpg');
   const [newBannerBadge, setNewBannerBadge] = useState('স্পেশাল অফার');
   const [newBannerActionText, setNewBannerActionText] = useState('টাকা যোগ করুন');
   const [newBannerActionTab, setNewBannerActionTab] = useState<'deposit' | 'orders' | 'home'>('deposit');
@@ -572,10 +573,11 @@ export const AdminDashboard: React.FC = () => {
                     <div className="flex items-start gap-3">
                       {/* Thumbnail & Image Change Trigger */}
                       <div className="relative group shrink-0">
-                        <img
+                        <SafeImage
                           src={prod.image}
                           alt={prod.title}
-                          referrerPolicy="no-referrer"
+                          title={prod.title}
+                          category={prod.category}
                           className="w-14 h-14 rounded-xl object-cover border border-slate-300 shadow-xs"
                         />
                         <button
@@ -964,9 +966,10 @@ export const AdminDashboard: React.FC = () => {
                   >
                     {/* Visual Banner Preview Card */}
                     <div className="relative h-32 rounded-xl overflow-hidden bg-slate-900 border border-slate-300">
-                      <img
+                      <SafeImage
                         src={b.imageUrl}
                         alt={b.title}
+                        title={b.title}
                         className="w-full h-full object-cover opacity-60"
                       />
                       <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent p-3 flex flex-col justify-between text-white">
@@ -1217,7 +1220,7 @@ export const AdminDashboard: React.FC = () => {
                         : 'border-slate-300 bg-white hover:bg-slate-100'
                     }`}
                   >
-                    <img
+                    <SafeImage
                       src={preset.url}
                       alt={preset.label}
                       className="w-8 h-8 rounded-md object-cover border border-slate-200 shrink-0"

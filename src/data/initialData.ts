@@ -25,7 +25,7 @@ export const SUPPORT_PHONE = '01845735906';
 export const SUPPORT_PHONE_FORMATTED = '01845-735906';
 export const SUPPORT_WHATSAPP_LINK = 'https://wa.me/8801845735906';
 
-export const PAYMENT_ACCOUNTS: Record<'bkash' | 'nagad' | 'rocket', PaymentAccountInfo> = {
+export const PAYMENT_ACCOUNTS: Record<'bkash' | 'nagad', PaymentAccountInfo> = {
   bkash: {
     method: 'bkash',
     name: 'bKash Personal (বিকাশ পার্সোনাল)',
@@ -51,19 +51,6 @@ export const PAYMENT_ACCOUNTS: Record<'bkash' | 'nagad' | 'rocket', PaymentAccou
       'টাকার পরিমাণ ও পিন দিয়ে কনফার্ম করুন (নগদে ক্যাশ-আউট নয়, শুধু সেন্ড মানি)।',
       'প্রাপ্ত ৮ ডিজিটের TrxID টি এবং আপনার যে নম্বর থেকে পাঠিয়েছেন তা দিয়ে সাবমিট করুন।'
     ]
-  },
-  rocket: {
-    method: 'rocket',
-    name: 'Rocket Personal (রকেট পার্সোনাল)',
-    number: '01911-382910-4',
-    type: 'Personal',
-    color: '#8C3494', // Authentic Rocket purple accent
-    instructions: [
-      'আপনার রকেট অ্যাপ অথবা *322# ডায়াল করে "Send Money" অপশনে যান।',
-      'আমাদের ১২ ডিজিটের রকেট একাউন্ট নম্বর দিন: 01911-382910-4',
-      'টাকা পাঠিয়ে ট্রানজেকশন আইডি (TxnID) সংরক্ষণ করুন।',
-      'নিচের ফর্মে প্রেরক নম্বর ও TxnID দিয়ে সাবমিট রিকোয়েস্ট করুন।'
-    ]
   }
 };
 
@@ -76,7 +63,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'শুক্রবার স্পেশাল 🔥',
     description: 'প্রতি শুক্রবারের ধামাকা স্পেশাল অফার! বিশাল ছাড়ে অতিরিক্ত বোনাস ডায়মন্ড ও আকর্ষণীয় রিওয়ার্ড।',
     playerIdLabel: 'Player ID (UID)',
-    image: '/src/assets/images/ff_friday_offer_1790099054219.jpg',
+    image: '/images/ff_friday_offer_1790099054219.jpg',
     bannerGradient: 'from-amber-600/30 to-rose-950/40',
     isActive: true,
     packages: [
@@ -94,7 +81,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'লাকি ড্রপ 🎁',
     description: 'লাকি মিস্ট্রি বক্স খুলে জিতে নিন গ্যারান্টিড ডায়মন্ড, রানিং বান্ডেল ও সারপ্রাইজ রিওয়ার্ড।',
     playerIdLabel: 'Player ID (UID)',
-    image: '/src/assets/images/ff_mystery_box_1790099065451.jpg',
+    image: '/images/ff_mystery_box_1790099065451.jpg',
     bannerGradient: 'from-purple-600/30 to-indigo-950/40',
     isActive: true,
     packages: [
@@ -134,7 +121,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'অফিসিয়াল মেম্বারশিপ',
     description: 'সাপ্তাহিক ও মাসিক মেম্বারশিপ। প্রতিদিন লগইন করে ডায়মন্ড ক্লেইম করুন এবং উপভোগ করুন ভিআইপি প্রিভিলেজ।',
     playerIdLabel: 'Player ID (UID)',
-    image: '/src/assets/images/ff_weekly_monthly_1790099076947.jpg',
+    image: '/images/ff_weekly_monthly_1790099076947.jpg',
     bannerGradient: 'from-blue-600/30 to-indigo-950/40',
     isActive: true,
     packages: [
@@ -150,7 +137,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'মেগা সেভিং কম্বো 💥',
     description: 'একসাথে উইকলি ও মান্থলি মেম্বারশিপ নিয়ে উপভোগ করুন ৩০০০+ ডায়মন্ড এবং সুপার ক্যাশব্যাক ছাড়।',
     playerIdLabel: 'Player ID (UID)',
-    image: '/src/assets/images/ff_combo_offer_1790099090251.jpg',
+    image: '/images/ff_combo_offer_1790099090251.jpg',
     bannerGradient: 'from-teal-600/30 to-slate-950/40',
     isActive: true,
     packages: [
@@ -166,7 +153,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'সাশ্রয়ী উইকলি 💎',
     description: 'বাংলাদেশ সার্ভারের জন্য স্পেশাল উইকলি লাইট মেম্বারশিপ। স্বল্প খরচে দ্রুত ডায়মন্ড জমার সেরা প্যাকেজ।',
     playerIdLabel: 'Player ID (UID)',
-    image: '/src/assets/images/ff_weekly_lite_1790099102077.jpg',
+    image: '/images/ff_weekly_lite_1790099102077.jpg',
     bannerGradient: 'from-cyan-600/30 to-blue-950/40',
     isActive: true,
     packages: [
@@ -183,7 +170,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: '৮০২ ডায়মন্ড রিওয়ার্ড ⭐',
     description: 'লেভেল ৩০ পর্যন্ত মোট ৮০২ টি ডায়মন্ড ক্লেইম করার অফিসিয়াল লেভেল আপ পাস। প্রতিটি আইডিতে একবারই প্রযোজ্য।',
     playerIdLabel: 'Player ID (UID)',
-    image: '/src/assets/images/ff_levelup_pass_1790099113083.jpg',
+    image: '/images/ff_levelup_pass_1790099113083.jpg',
     bannerGradient: 'from-amber-600/30 to-yellow-950/40',
     isActive: true,
     packages: [
@@ -198,7 +185,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'ইনস্ট্যান্ট লাইকস ⚡',
     description: 'আপনার টিকটক ভিডিও ভাইরাল করার জন্য হাই কোয়ালিটি লাইক। কোনো পাসওয়ার্ড লাগবে না, শুধু ভিডিও লিংক দিন।',
     playerIdLabel: 'TikTok Video Link (ভিডিও লিংক)',
-    image: '/src/assets/images/tiktok_like_cover_1790098978170.jpg',
+    image: '/images/tiktok_like_cover_1790098978170.jpg',
     bannerGradient: 'from-rose-600/30 to-black/60',
     isActive: true,
     packages: [
@@ -217,7 +204,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'নন-ড্রপ ফলোয়ার্স 🚀',
     description: 'টিকটক একাউন্ট গ্রোথ ও লাইভ অপশন আনলক করতে রিয়েল ও অ্যাক্টিভ ফলোয়ার্স। ১০০% নিরাপদ ও দ্রুত ডেলিভারি।',
     playerIdLabel: 'TikTok Profile Link / Username (প্রোফাইল লিংক বা ইউজারনেম)',
-    image: '/src/assets/images/tiktok_followers_cover_1790098990397.jpg',
+    image: '/images/tiktok_followers_cover_1790098990397.jpg',
     bannerGradient: 'from-pink-600/30 to-black/60',
     isActive: true,
     packages: [
@@ -236,7 +223,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'রিয়েল পেজ ফলোয়ার্স 👍',
     description: 'ফেসবুক বিজনেস অথবা ক্রিয়েটর পেজের ফলোয়ার ও লাইক। পেজের গ্রহণযোগ্যতা ও মনিটাইজেশন বাড়াতে সহায়ক।',
     playerIdLabel: 'Facebook Page Link (পেজ লিংক)',
-    image: '/src/assets/images/facebook_page_cover_1790099001864.jpg',
+    image: '/images/facebook_page_cover_1790099001864.jpg',
     bannerGradient: 'from-blue-600/30 to-indigo-950/60',
     isActive: true,
     packages: [
@@ -255,7 +242,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'মিক্সড রিয়েক্ট ❤️',
     description: 'যেকোনো ফেসবুক পাবলিক পোস্ট বা ছবির জন্য লাভ, কেয়ার, হাহা বা ওয়াও রিঅ্যাক্ট। ইনস্ট্যান্ট ডেলিভারি।',
     playerIdLabel: 'Facebook Post Link (পোস্ট লিংক)',
-    image: '/src/assets/images/facebook_react_cover_1790099014624.jpg',
+    image: '/images/facebook_react_cover_1790099014624.jpg',
     bannerGradient: 'from-rose-600/30 to-blue-950/60',
     isActive: true,
     packages: [
@@ -274,7 +261,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'ভিডিও ও রিলস ভিউজ 👁️',
     description: 'ফেসবুক ভিডিও এবং রিলসের জন্য হাই রিটেনশন ওয়াচ-টাইম ও ভিউজ। ভিডিও ভাইরাল হওয়ার সুযোগ তৈরি করে।',
     playerIdLabel: 'Facebook Video / Reel Link (ভিডিও বা রিলস লিংক)',
-    image: '/src/assets/images/facebook_views_cover_1790099026190.jpg',
+    image: '/images/facebook_views_cover_1790099026190.jpg',
     bannerGradient: 'from-sky-600/30 to-blue-950/60',
     isActive: true,
     packages: [
@@ -293,7 +280,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     badge: 'আইডি ফলোয়ার্স 👤',
     description: 'ব্যক্তিগত ফেসবুক আইডি / প্রোফাইলের জন্য অর্গানিক ফলোয়ার্স। প্রোফাইল পাবলিক রেখে শুধু লিংক প্রদান করুন।',
     playerIdLabel: 'Facebook Profile / ID Link (প্রোফাইল লিংক)',
-    image: '/src/assets/images/facebook_id_followers_1790099038810.jpg',
+    image: '/images/facebook_id_followers_1790099038810.jpg',
     bannerGradient: 'from-blue-600/30 to-slate-950/60',
     isActive: true,
     packages: [
@@ -345,10 +332,10 @@ export const INITIAL_DEPOSITS: DepositRequest[] = [
     id: 'DEP-6629',
     userId: 'usr_88017',
     userName: 'সায়েদ আফ্রিদী',
-    method: 'rocket',
+    method: 'bkash',
     amount: 100,
     senderPhone: '01712-345678',
-    trxId: 'RCK0019283',
+    trxId: 'BK0019283',
     status: 'rejected',
     rejectReason: 'প্রদত্ত TrxID সঠিক নয় অথবা কোনো টাকা জমা হয়নি। অনুগ্রহ করে সঠিক TrxID দিয়ে পুনরায় চেষ্টা করুন।',
     createdAt: '2025-02-18 19:10',
@@ -420,7 +407,7 @@ export const INITIAL_BANNERS: HomeBanner[] = [
     id: 'banner_friday',
     title: 'Friday Special Mega Offer 🔥',
     subtitle: 'প্রতি শুক্রবারে ডাবল ডায়মন্ড বোনাস ও বিশাল ছাড়! সরাসরি UID দিয়ে টপ-আপ নিন।',
-    imageUrl: '/src/assets/images/ff_friday_offer_1790099054219.jpg',
+    imageUrl: '/images/ff_friday_offer_1790099054219.jpg',
     badge: 'ফ্রাইডে স্পেশাল',
     actionTab: 'home',
     actionText: 'অফার দেখুন',
@@ -440,7 +427,7 @@ export const INITIAL_BANNERS: HomeBanner[] = [
     id: 'banner_membership',
     title: 'সাপ্তাহিক ও মাসিক মেম্বারশিপ কম্বো',
     subtitle: 'একসাথে উইকলি ও মান্থলি নিয়ে ৩০০০+ ডায়মন্ড সেভ করুন এক ক্লিকে।',
-    imageUrl: '/src/assets/images/ff_weekly_monthly_1790099076947.jpg',
+    imageUrl: '/images/ff_weekly_monthly_1790099076947.jpg',
     badge: 'মেগা সেভিং',
     actionTab: 'home',
     actionText: 'প্যাকেজ দেখুন',
@@ -450,7 +437,7 @@ export const INITIAL_BANNERS: HomeBanner[] = [
     id: 'banner_social',
     title: 'টিকটক ও ফেসবুক সোশ্যাল গ্রোথ সার্ভিস',
     subtitle: '১০০% রিয়েল অর্গানিক ফলোয়ার্স, লাইক, ভিউজ ও পোস্ট রিঅ্যাক্ট সার্ভিস।',
-    imageUrl: '/src/assets/images/tiktok_like_cover_1790098978170.jpg',
+    imageUrl: '/images/tiktok_like_cover_1790098978170.jpg',
     badge: 'সোশ্যাল সার্ভিস',
     actionTab: 'home',
     actionText: 'অর্ডার করুন',
@@ -460,17 +447,17 @@ export const INITIAL_BANNERS: HomeBanner[] = [
 
 export const PRESET_PRODUCT_IMAGES: { label: string; url: string; category: string }[] = [
   { label: 'DC Top Up লোগো', url: '/dc_logo.jpg', category: 'General' },
-  { label: 'DC Wallet ব্যানার', url: '/src/assets/images/dc_topup_logo_1790094683501.jpg', category: 'General' },
-  { label: 'Friday Offer (ফ্রাইডে অফার)', url: '/src/assets/images/ff_friday_offer_1790099054219.jpg', category: 'Gaming' },
-  { label: 'Mystery Box (মিস্ট্রি বক্স)', url: '/src/assets/images/ff_mystery_box_1790099065451.jpg', category: 'Gaming' },
-  { label: 'Weekly / Monthly (মেম্বারশিপ)', url: '/src/assets/images/ff_weekly_monthly_1790099076947.jpg', category: 'Gaming' },
-  { label: 'Combo Offer (কম্বো অফার)', url: '/src/assets/images/ff_combo_offer_1790099090251.jpg', category: 'Gaming' },
-  { label: 'Weekly Lite BD (উইকলি লাইট)', url: '/src/assets/images/ff_weekly_lite_1790099102077.jpg', category: 'Gaming' },
-  { label: 'Level Up Pass (লেভেল আপ পাস)', url: '/src/assets/images/ff_levelup_pass_1790099113083.jpg', category: 'Gaming' },
-  { label: 'TikTok Video Like (ভিডিও লাইক)', url: '/src/assets/images/tiktok_like_cover_1790098978170.jpg', category: 'TikTok' },
-  { label: 'TikTok Followers (ফলোয়ার্স)', url: '/src/assets/images/tiktok_followers_cover_1790098990397.jpg', category: 'TikTok' },
-  { label: 'Facebook Page Likes (পেজ লাইক)', url: '/src/assets/images/facebook_page_cover_1790099001864.jpg', category: 'Facebook' },
-  { label: 'Facebook Post React (পোস্ট রিঅ্যাক্ট)', url: '/src/assets/images/facebook_react_cover_1790099014624.jpg', category: 'Facebook' },
-  { label: 'Facebook Video Views (ভিডিও ভিউজ)', url: '/src/assets/images/facebook_views_cover_1790099026190.jpg', category: 'Facebook' },
-  { label: 'Facebook Profile Followers (আইডি ফলোয়ার্স)', url: '/src/assets/images/facebook_id_followers_1790099038810.jpg', category: 'Facebook' }
+  { label: 'DC Wallet ব্যানার', url: '/images/dc_topup_logo_1790094683501.jpg', category: 'General' },
+  { label: 'Friday Offer (ফ্রাইডে অফার)', url: '/images/ff_friday_offer_1790099054219.jpg', category: 'Gaming' },
+  { label: 'Mystery Box (মিস্ট্রি বক্স)', url: '/images/ff_mystery_box_1790099065451.jpg', category: 'Gaming' },
+  { label: 'Weekly / Monthly (মেম্বারশিপ)', url: '/images/ff_weekly_monthly_1790099076947.jpg', category: 'Gaming' },
+  { label: 'Combo Offer (কম্বো অফার)', url: '/images/ff_combo_offer_1790099090251.jpg', category: 'Gaming' },
+  { label: 'Weekly Lite BD (উইকলি লাইট)', url: '/images/ff_weekly_lite_1790099102077.jpg', category: 'Gaming' },
+  { label: 'Level Up Pass (লেভেল আপ পাস)', url: '/images/ff_levelup_pass_1790099113083.jpg', category: 'Gaming' },
+  { label: 'TikTok Video Like (ভিডিও লাইক)', url: '/images/tiktok_like_cover_1790098978170.jpg', category: 'TikTok' },
+  { label: 'TikTok Followers (ফলোয়ার্স)', url: '/images/tiktok_followers_cover_1790098990397.jpg', category: 'TikTok' },
+  { label: 'Facebook Page Likes (পেজ লাইক)', url: '/images/facebook_page_cover_1790099001864.jpg', category: 'Facebook' },
+  { label: 'Facebook Post React (পোস্ট রিঅ্যাক্ট)', url: '/images/facebook_react_cover_1790099014624.jpg', category: 'Facebook' },
+  { label: 'Facebook Video Views (ভিডিও ভিউজ)', url: '/images/facebook_views_cover_1790099026190.jpg', category: 'Facebook' },
+  { label: 'Facebook Profile Followers (আইডি ফলোয়ার্স)', url: '/images/facebook_id_followers_1790099038810.jpg', category: 'Facebook' }
 ];

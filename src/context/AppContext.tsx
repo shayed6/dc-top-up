@@ -79,7 +79,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [products, setProducts] = useState<TopUpProduct[]>(() => {
     const ver = localStorage.getItem('dc_catalog_ver');
-    if (ver === 'v5_matched_images') {
+    if (ver === 'v7_reliable_images') {
       const saved = localStorage.getItem('dc_products');
       if (saved) {
         try {
@@ -90,7 +90,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
     // Refresh to the exact items with matching images requested by the user
-    localStorage.setItem('dc_catalog_ver', 'v5_matched_images');
+    localStorage.setItem('dc_catalog_ver', 'v7_reliable_images');
     localStorage.setItem('dc_products', JSON.stringify(INITIAL_PRODUCTS));
     return INITIAL_PRODUCTS;
   });
@@ -127,8 +127,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [banners, setBanners] = useState<HomeBanner[]>(() => {
-    const saved = localStorage.getItem('dc_banners');
-    return saved ? JSON.parse(saved) : INITIAL_BANNERS;
+    const ver = localStorage.getItem('dc_banners_ver');
+    if (ver === 'v7_reliable_images') {
+      const saved = localStorage.getItem('dc_banners');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          // fallback
+        }
+      }
+    }
+    localStorage.setItem('dc_banners_ver', 'v7_reliable_images');
+    localStorage.setItem('dc_banners', JSON.stringify(INITIAL_BANNERS));
+    return INITIAL_BANNERS;
   });
 
   const [toasts, setToasts] = useState<ToastInfo[]>([]);

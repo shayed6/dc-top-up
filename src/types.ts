@@ -1,4 +1,4 @@
-export type PaymentMethodType = 'bkash' | 'nagad' | 'rocket';
+export type PaymentMethodType = 'bkash' | 'nagad';
 
 export type DepositStatus = 'pending' | 'approved' | 'rejected';
 
