@@ -8,7 +8,7 @@ import {
   Users, ShoppingBag, Package, Plus, Trash2, AlertCircle, 
   Search, Copy, Check, DollarSign, RefreshCw, Image as ImageIcon,
   Megaphone, Flame, Info, AlertTriangle, Sparkles, ExternalLink,
-  ArrowRight, Tag, Eye, CheckSquare
+  ArrowRight, Tag, Eye, EyeOff, CheckSquare, Lock, ShieldAlert, Edit3, Database
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -23,8 +23,11 @@ export const AdminDashboard: React.FC = () => {
     updateProduct,
     deleteProduct,
     toggleProductStock,
+    toggleProductActive,
     togglePackageStock,
     updateProductImage,
+    updateProductPackages,
+    seedProductsToFirestore,
     notice,
     updateNotice,
     banners,
@@ -47,21 +50,43 @@ export const AdminDashboard: React.FC = () => {
   const [editingImageProduct, setEditingImageProduct] = useState<TopUpProduct | null>(null);
   const [customImageUrl, setCustomImageUrl] = useState('');
 
+  // Edit existing product full metadata state
+  const [editingDetailsProduct, setEditingDetailsProduct] = useState<TopUpProduct | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editBadgeTag, setEditBadgeTag] = useState('');
+  const [editSortOrder, setEditSortOrder] = useState<number>(1);
+  const [editCategory, setEditCategory] = useState<ProductCategory>('gaming');
+  const [editSubCategory, setEditSubCategory] = useState('');
+  const [editPlayerIdLabel, setEditPlayerIdLabel] = useState('');
+
   // Add package to existing product state
   const [addingPackageToProduct, setAddingPackageToProduct] = useState<TopUpProduct | null>(null);
   const [newPkgName, setNewPkgName] = useState('');
   const [newPkgAmount, setNewPkgAmount] = useState('');
   const [newPkgPrice, setNewPkgPrice] = useState('');
 
+  // Edit package in existing product state
+  const [editingPackageProduct, setEditingPackageProduct] = useState<{
+    product: TopUpProduct;
+    package: TopUpPackage;
+  } | null>(null);
+  const [editPkgName, setEditPkgName] = useState('');
+  const [editPkgAmount, setEditPkgAmount] = useState('');
+  const [editPkgPrice, setEditPkgPrice] = useState('');
+
+  const [isSeedingProducts, setIsSeedingProducts] = useState(false);
+
   // Add new product modal state
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [newProductTitle, setNewProductTitle] = useState('');
   const [newProductCategory, setNewProductCategory] = useState<ProductCategory>('gaming');
-  const [newProductSubCategory, setNewProductSubCategory] = useState('BD Server');
-  const [newProductBadge, setNewProductBadge] = useState('নতুন অফার 🔥');
+  const [newProductSubCategory, setNewProductSubCategory] = useState('Special Offer');
+  const [newProductBadge, setNewProductBadge] = useState('Special Offer');
   const [newProductPlayerIdLabel, setNewProductPlayerIdLabel] = useState('Player ID (UID)');
   const [newProductImageUrl, setNewProductImageUrl] = useState('/images/ff_friday_offer_1790099054219.jpg');
   const [newProductDescription, setNewProductDescription] = useState('');
+  const [newProductSortOrder, setNewProductSortOrder] = useState<number>(1);
   const [newPackageList, setNewPackageList] = useState<Array<{ name: string; amount: string; price: number; popular: boolean }>>([
     { name: '115 Diamonds', amount: '115 💎', price: 85, popular: true }
   ]);
@@ -98,6 +123,9 @@ export const AdminDashboard: React.FC = () => {
   const todayApprovedAmount = approvedDeposits.reduce((acc, curr) => acc + curr.amount, 0);
   const totalCompletedOrders = orders.filter((o) => o.status === 'delivered').length;
 
+  // Real-time verification of admin role from users/{uid} document
+  const isAdmin = currentUser.role === 'admin';
+
   const handleCopyTrx = (trx: string) => {
     navigator.clipboard.writeText(trx);
     setCopiedTrx(trx);
@@ -105,9 +133,9 @@ export const AdminDashboard: React.FC = () => {
     setTimeout(() => setCopiedTrx(null), 2000);
   };
 
-  const handleConfirmReject = () => {
+  const handleConfirmReject = async () => {
     if (!rejectingDeposit) return;
-    rejectDeposit(rejectingDeposit.id, rejectReason);
+    await rejectDeposit(rejectingDeposit.id, rejectReason);
     setRejectingDeposit(null);
   };
 
@@ -160,13 +188,37 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 self-start md:self-center px-4 py-2.5 rounded-xl bg-white border border-slate-300 text-xs shadow-xs">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+          <div className={`w-2.5 h-2.5 rounded-full ${isAdmin ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
           <div>
-            <span className="text-slate-600 block text-[10px] uppercase font-bold tracking-wide">কাস্টমার ওয়ালেট (লাইভ)</span>
-            <span className="font-extrabold text-black text-sm">৳ {currentUser.walletBalance.toFixed(2)}</span>
+            <span className="text-slate-600 block text-[10px] uppercase font-bold tracking-wide">
+              {isAdmin ? 'এডমিন পারমিশন: সক্রিয় (role: admin)' : `অননুমোদিত (role: ${currentUser.role})`}
+            </span>
+            <span className="font-extrabold text-black text-xs font-mono">
+              UID: {currentUser.id.slice(0, 12)}...
+            </span>
           </div>
         </div>
       </div>
+
+      {/* Security notice if logged-in user is not admin */}
+      {!isAdmin && (
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold">
+                এডমিন অ্যাকশন লকড: Firestore ক্লায়েন্ট SDK এক্সেস সীমিত
+              </p>
+              <p className="text-xs text-amber-900 mt-0.5">
+                সরাসরি ব্রাউজার থেকে ডিপোজিট অ্যাপ্রুভ/রিজেক্ট এবং অর্ডার স্ট্যাটাস আপডেট করতে আপনার <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold">users/{'{uid}'}</code> ডকুমেন্টে <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold">role: "admin"</code> থাকতে হবে।
+              </p>
+            </div>
+          </div>
+          <span className="px-3 py-1 rounded-md bg-amber-200 text-amber-950 text-xs font-extrabold shrink-0">
+            অ্যাকশন বোতামসমূহ নিষ্ক্রিয়
+          </span>
+        </div>
+      )}
 
       {/* Stats Overview Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -374,25 +426,32 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200">
-                      <button
-                        id={`approve-btn-${dep.id}`}
-                        onClick={() => approveDeposit(dep.id)}
-                        className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-colors"
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>অ্যাপ্রুভ ও টাকা যোগ করুন</span>
-                      </button>
+                    {isAdmin ? (
+                      <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200">
+                        <button
+                          id={`approve-btn-${dep.id}`}
+                          onClick={() => approveDeposit(dep.id)}
+                          className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-colors"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>অ্যাপ্রুভ ও টাকা যোগ করুন</span>
+                        </button>
 
-                      <button
-                        id={`reject-btn-${dep.id}`}
-                        onClick={() => setRejectingDeposit(dep)}
-                        className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-rose-700 border border-slate-300 hover:border-rose-300 font-bold text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                      >
-                        <XCircle className="w-4 h-4" />
-                        <span>বাতিল</span>
-                      </button>
-                    </div>
+                        <button
+                          id={`reject-btn-${dep.id}`}
+                          onClick={() => setRejectingDeposit(dep)}
+                          className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-rose-700 border border-slate-300 hover:border-rose-300 font-bold text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <XCircle className="w-4 h-4" />
+                          <span>বাতিল</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 border border-slate-300 text-slate-700 text-xs font-semibold">
+                        <Lock className="w-3.5 h-3.5 text-slate-500" />
+                        <span>অ্যাকশন লকড (role: admin প্রয়োজন)</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -505,21 +564,53 @@ export const AdminDashboard: React.FC = () => {
               <div>
                 <h3 className="font-extrabold text-sm sm:text-base text-black flex items-center gap-2">
                   <Package className="w-4 h-4 text-emerald-600" />
-                  <span>টপ-আপ প্রোডাক্ট, ছবি পরিবর্তন ও স্টক আউট কন্ট্রোল</span>
+                  <span>টপ-আপ প্রোডাক্ট, প্যাকেজ ও মূল্য তালিকা (Firestore)</span>
                 </h3>
                 <p className="text-xs text-slate-800 font-medium">
-                  যেকোনো প্রোডাক্টের ছবি পরিবর্তন করুন, সরাসরি 'স্টক আউট' করুন, নতুন প্যাকেজ যোগ করুন এবং বিক্রয়মূল্য নিয়ন্ত্রণ করুন।
+                  নতুন প্রোডাক্ট ও প্যাকেজ যোগ করুন, ছবি বা মূল্য পরিবর্তন করুন এবং স্টোর থেকে শো/হাইড নিয়ন্ত্রণ করুন।
                 </p>
               </div>
 
-              <button
-                id="admin-add-product-btn"
-                onClick={() => setShowAddProductModal(true)}
-                className="px-4 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold text-xs flex items-center gap-1.5 transition-all self-start lg:self-auto shadow-md cursor-pointer transform active:scale-95"
-              >
-                <Plus className="w-4 h-4" />
-                <span>নতুন প্রোডাক্ট যোগ করুন</span>
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Seed / Sync Catalog Button */}
+                {isAdmin && (
+                  <button
+                    id="admin-seed-products-btn"
+                    onClick={async () => {
+                      setIsSeedingProducts(true);
+                      await seedProductsToFirestore();
+                      setIsSeedingProducts(false);
+                    }}
+                    disabled={isSeedingProducts}
+                    className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                    title="প্রয়োজনে ডিফল্ট ক্যাটালগ Firestore-এ সিড করুন"
+                  >
+                    <Database className={`w-3.5 h-3.5 text-blue-600 ${isSeedingProducts ? 'animate-spin' : ''}`} />
+                    <span>{isSeedingProducts ? 'Firestore-এ সিঙ্ক হচ্ছে...' : 'Firestore-এ সিঙ্ক করুন'}</span>
+                  </button>
+                )}
+
+                {/* Add New Product Button */}
+                <button
+                  id="admin-add-product-btn"
+                  onClick={() => {
+                    if (!isAdmin) {
+                      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা প্রোডাক্ট যোগ করতে পারেন।', 'error');
+                      return;
+                    }
+                    setShowAddProductModal(true);
+                  }}
+                  disabled={!isAdmin}
+                  className={`px-4 py-2.5 rounded-xl font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-md ${
+                    isAdmin
+                      ? 'bg-black hover:bg-slate-800 text-white cursor-pointer transform active:scale-95'
+                      : 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                  }`}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>নতুন প্রোডাক্ট যোগ করুন</span>
+                </button>
+              </div>
             </div>
 
             {/* Filter Bar */}
@@ -565,7 +656,7 @@ export const AdminDashboard: React.FC = () => {
                   key={prod.id}
                   id={`admin-product-item-${prod.id}`}
                   className={`p-4 rounded-xl bg-white border transition-all space-y-3.5 shadow-xs ${
-                    prod.isOutOfStock ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200'
+                    prod.isOutOfStock ? 'border-rose-300 bg-rose-50/20' : prod.isActive === false ? 'border-slate-300 bg-slate-50/60 opacity-90' : 'border-slate-200'
                   }`}
                 >
                   {/* Card Header */}
@@ -574,34 +665,43 @@ export const AdminDashboard: React.FC = () => {
                       {/* Thumbnail & Image Change Trigger */}
                       <div className="relative group shrink-0">
                         <SafeImage
-                          src={prod.image}
+                          src={prod.bannerImageUrl || prod.image}
                           alt={prod.title}
                           title={prod.title}
                           category={prod.category}
-                          className="w-14 h-14 rounded-xl object-cover border border-slate-300 shadow-xs"
+                          className="w-16 h-16 rounded-xl object-cover border border-slate-300 shadow-xs"
                         />
-                        <button
-                          onClick={() => {
-                            setEditingImageProduct(prod);
-                            setCustomImageUrl(prod.image);
-                          }}
-                          className="absolute inset-0 bg-black/60 rounded-xl flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer p-1 text-[9px] font-bold text-center"
-                          title="ছবি পরিবর্তন করুন"
-                        >
-                          <ImageIcon className="w-3.5 h-3.5 mb-0.5" />
-                          <span>ছবি পাল্টান</span>
-                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => {
+                              setEditingImageProduct(prod);
+                              setCustomImageUrl(prod.bannerImageUrl || prod.image);
+                            }}
+                            className="absolute inset-0 bg-black/60 rounded-xl flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer p-1 text-[9px] font-bold text-center"
+                            title="ব্যানার ছবি পরিবর্তন করুন"
+                          >
+                            <ImageIcon className="w-3.5 h-3.5 mb-0.5" />
+                            <span>ছবি পাল্টান</span>
+                          </button>
+                        )}
                       </div>
 
                       <div className="space-y-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <h4 className="font-extrabold text-sm text-black">{prod.title}</h4>
+                          {/* Badge tag */}
+                          {(prod.badgeTag || prod.badge) && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-950 border border-amber-300">
+                              {prod.badgeTag || prod.badge}
+                            </span>
+                          )}
                           {prod.isOutOfStock && (
                             <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-rose-600 text-white uppercase tracking-wider">
                               স্টক আউট
                             </span>
                           )}
                         </div>
+
                         <div className="flex items-center gap-2 text-[11px] text-slate-700">
                           <span className="font-bold uppercase tracking-wider text-[10px] bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300">
                             {prod.category}
@@ -609,67 +709,106 @@ export const AdminDashboard: React.FC = () => {
                           {prod.subCategory && (
                             <span className="text-slate-800 font-medium">({prod.subCategory})</span>
                           )}
+                          {typeof prod.sortOrder === 'number' && (
+                            <span className="text-[10px] text-slate-500 font-mono">#{prod.sortOrder}</span>
+                          )}
                         </div>
+
+                        {prod.description && (
+                          <p className="text-[11px] text-slate-600 line-clamp-1 max-w-xs">{prod.description}</p>
+                        )}
                       </div>
                     </div>
 
                     {/* Stock & Action Controls */}
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
-                      {/* Product Stock Out Switch */}
+                      {/* Product Active Toggle (Show/Hide from public page) */}
                       <button
-                        onClick={() => toggleProductStock(prod.id)}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold border transition-all cursor-pointer flex items-center gap-1 ${
-                          prod.isOutOfStock
-                            ? 'bg-rose-600 text-white border-rose-600 hover:bg-rose-700 shadow-xs'
-                            : 'bg-emerald-50 text-emerald-950 border-emerald-300 hover:bg-emerald-100'
+                        onClick={() => toggleProductActive(prod.id)}
+                        disabled={!isAdmin}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold border transition-all flex items-center gap-1 ${
+                          !isAdmin
+                            ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                            : prod.isActive !== false
+                            ? 'bg-emerald-50 text-emerald-950 border-emerald-300 hover:bg-emerald-100 cursor-pointer shadow-xs'
+                            : 'bg-slate-200 text-slate-800 border-slate-300 hover:bg-slate-300 cursor-pointer'
                         }`}
-                        title="ক্লিক করে পণ্যটি স্টক আউট অথবা ইন স্টক করুন"
+                        title="পাবলিক পেজে প্রোডাক্টটি দেখান অথবা লুকান"
                       >
-                        <span className={`w-2 h-2 rounded-full ${prod.isOutOfStock ? 'bg-white' : 'bg-emerald-600'}`} />
-                        <span>{prod.isOutOfStock ? 'স্টক আউট' : 'ইন স্টক'}</span>
+                        {prod.isActive !== false ? (
+                          <Eye className="w-3 h-3 text-emerald-700" />
+                        ) : (
+                          <EyeOff className="w-3 h-3 text-slate-600" />
+                        )}
+                        <span>{prod.isActive !== false ? 'স্টোরে দৃশ্যমান' : 'লুকানো (Hidden)'}</span>
                       </button>
 
                       <div className="flex items-center gap-1">
-                        {/* Change Image Button */}
-                        <button
-                          onClick={() => {
-                            setEditingImageProduct(prod);
-                            setCustomImageUrl(prod.image);
-                          }}
-                          className="px-2 py-1 rounded text-[10px] font-bold bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black flex items-center gap-1 cursor-pointer"
-                          title="ছবি পরিবর্তন করুন"
-                        >
-                          <ImageIcon className="w-3 h-3" />
-                          <span>ছবি</span>
-                        </button>
+                        {/* Edit Info Button */}
+                        {isAdmin && (
+                          <button
+                            onClick={() => {
+                              setEditingDetailsProduct(prod);
+                              setEditTitle(prod.title);
+                              setEditDescription(prod.description || '');
+                              setEditBadgeTag(prod.badgeTag || prod.badge || '');
+                              setEditSortOrder(typeof prod.sortOrder === 'number' ? prod.sortOrder : 1);
+                              setEditCategory(prod.category);
+                              setEditSubCategory(prod.subCategory || '');
+                              setEditPlayerIdLabel(prod.playerIdLabel || 'Player ID (UID)');
+                            }}
+                            className="px-2 py-1 rounded text-[10px] font-bold bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black flex items-center gap-1 cursor-pointer"
+                            title="প্রোডাক্টের বিবরণ, নাম ও ট্যাগ পরিবর্তন করুন"
+                          >
+                            <Edit3 className="w-3 h-3 text-slate-700" />
+                            <span>এডিট</span>
+                          </button>
+                        )}
 
-                        {/* Active Switch */}
-                        <button
-                          onClick={() => {
-                            const updated = { ...prod, isActive: !prod.isActive };
-                            updateProduct(updated);
-                          }}
-                          className={`px-2 py-1 rounded text-[10px] font-bold cursor-pointer ${
-                            prod.isActive
-                              ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
-                              : 'bg-slate-200 text-black'
-                          }`}
-                        >
-                          {prod.isActive ? 'সক্রিয়' : 'বন্ধ'}
-                        </button>
+                        {/* Change Image Button */}
+                        {isAdmin && (
+                          <button
+                            onClick={() => {
+                              setEditingImageProduct(prod);
+                              setCustomImageUrl(prod.bannerImageUrl || prod.image);
+                            }}
+                            className="px-2 py-1 rounded text-[10px] font-bold bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black flex items-center gap-1 cursor-pointer"
+                            title="ব্যানার ছবি পরিবর্তন করুন"
+                          >
+                            <ImageIcon className="w-3 h-3" />
+                            <span>ছবি</span>
+                          </button>
+                        )}
+
+                        {/* Stock Toggle Button */}
+                        {isAdmin && (
+                          <button
+                            onClick={() => toggleProductStock(prod.id)}
+                            className={`px-2 py-1 rounded text-[10px] font-extrabold border transition-all cursor-pointer flex items-center gap-1 ${
+                              prod.isOutOfStock
+                                ? 'bg-rose-600 text-white border-rose-600 hover:bg-rose-700'
+                                : 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200'
+                            }`}
+                            title="স্টক আউট টগল করুন"
+                          >
+                            <span>{prod.isOutOfStock ? 'স্টক আউট' : 'ইন স্টক'}</span>
+                          </button>
+                        )}
 
                         {/* Delete Product */}
-                        <button
-                          onClick={() => {
-                            if (confirm(`আপনি কি '${prod.title}' মুছে ফেলতে চান?`)) {
-                              deleteProduct(prod.id);
-                            }
-                          }}
-                          className="p-1 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
-                          title="মুছে ফেলুন"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => {
+                              if (confirm(`আপনি কি নিশ্চিতভাবে '${prod.title}' প্রোডাক্টটি মুছে ফেলতে চান?`)) {
+                                deleteProduct(prod.id);
+                              }
+                            }}
+                            className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer border border-transparent hover:border-rose-200"
+                            title="প্রোডাক্ট মুছুন"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -678,20 +817,22 @@ export const AdminDashboard: React.FC = () => {
                   <div className="space-y-1.5 text-xs pt-1 border-t border-slate-100">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold text-slate-800">
-                        প্যাকেজসমূহ ও বিক্রয়মূল্য (৳):
+                        প্যাকেজসমূহ ({prod.packages.length} টি):
                       </span>
-                      <button
-                        onClick={() => {
-                          setAddingPackageToProduct(prod);
-                          setNewPkgName('');
-                          setNewPkgAmount('');
-                          setNewPkgPrice('');
-                        }}
-                        className="text-[10px] text-emerald-800 font-extrabold hover:text-emerald-950 flex items-center gap-0.5 cursor-pointer bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200"
-                      >
-                        <Plus className="w-3 h-3" />
-                        <span>প্যাকেজ যোগ করুন</span>
-                      </button>
+                      {isAdmin && (
+                        <button
+                          onClick={() => {
+                            setAddingPackageToProduct(prod);
+                            setNewPkgName('');
+                            setNewPkgAmount('');
+                            setNewPkgPrice('');
+                          }}
+                          className="text-[10px] text-emerald-800 font-extrabold hover:text-emerald-950 flex items-center gap-0.5 cursor-pointer bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>প্যাকেজ যোগ করুন</span>
+                        </button>
+                      )}
                     </div>
 
                     <div className="space-y-1.5">
@@ -706,51 +847,56 @@ export const AdminDashboard: React.FC = () => {
                         >
                           <div className="flex items-center gap-2">
                             <span className="text-black font-bold">{pkg.name}</span>
-                            <span className="text-[10px] text-slate-500 font-mono">({pkg.amount})</span>
+                            <span className="text-[10px] text-slate-500 font-mono">({pkg.amount || pkg.diamonds})</span>
                           </div>
 
                           <div className="flex items-center gap-2">
-                            {/* Package Stock Out Toggle Button */}
-                            <button
-                              onClick={() => togglePackageStock(prod.id, pkg.id)}
-                              className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold transition-all cursor-pointer ${
-                                pkg.isOutOfStock
-                                  ? 'bg-rose-600 text-white'
-                                  : 'bg-slate-200 text-slate-800 hover:bg-slate-300'
-                              }`}
-                              title="প্যাকেজ স্টক আউট টগল করুন"
-                            >
-                              {pkg.isOutOfStock ? 'স্টক আউট' : 'স্টকে আছে'}
-                            </button>
+                            {/* Package Stock Toggle */}
+                            {isAdmin && (
+                              <button
+                                onClick={() => togglePackageStock(prod.id, pkg.id)}
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold transition-all cursor-pointer ${
+                                  pkg.isOutOfStock
+                                    ? 'bg-rose-600 text-white'
+                                    : 'bg-slate-200 text-slate-800 hover:bg-slate-300'
+                                }`}
+                                title="প্যাকেজ স্টক আউট টগল করুন"
+                              >
+                                {pkg.isOutOfStock ? 'স্টক আউট' : 'স্টকে আছে'}
+                              </button>
+                            )}
 
-                            {/* Price Input */}
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                defaultValue={pkg.price}
-                                onBlur={(e) => {
-                                  const newPrice = parseFloat(e.target.value);
-                                  if (!isNaN(newPrice) && newPrice > 0) {
-                                    const updatedPkgs = prod.packages.map((p) =>
-                                      p.id === pkg.id ? { ...p, price: newPrice } : p
-                                    );
-                                    updateProduct({ ...prod, packages: updatedPkgs });
-                                  }
-                                }}
-                                className="w-16 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-right font-sans font-extrabold text-black text-xs"
-                              />
-                              <span className="text-[10px] text-slate-700 font-bold">৳</span>
-                            </div>
+                            {/* Price Display */}
+                            <span className="font-extrabold text-black text-xs font-sans bg-white px-2 py-0.5 rounded border border-slate-200">
+                              ৳ {pkg.price}
+                            </span>
 
-                            {/* Remove Package if more than 1 */}
-                            {prod.packages.length > 1 && (
+                            {/* Edit Package Button */}
+                            {isAdmin && (
                               <button
                                 onClick={() => {
-                                  const updatedPkgs = prod.packages.filter((p) => p.id !== pkg.id);
-                                  updateProduct({ ...prod, packages: updatedPkgs });
-                                  showToast('প্যাকেজ মুছে ফেলা হয়েছে।', 'info');
+                                  setEditingPackageProduct({ product: prod, package: pkg });
+                                  setEditPkgName(pkg.name);
+                                  setEditPkgAmount(pkg.amount || pkg.diamonds || '');
+                                  setEditPkgPrice(String(pkg.price));
                                 }}
-                                className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                                className="p-1 rounded text-slate-600 hover:text-black hover:bg-slate-200 transition-colors cursor-pointer"
+                                title="প্যাকেজ ও মূল্য এডিট করুন"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                              </button>
+                            )}
+
+                            {/* Remove Package */}
+                            {isAdmin && prod.packages.length > 1 && (
+                              <button
+                                onClick={() => {
+                                  if (confirm(`আপনি কি '${pkg.name}' প্যাকেজটি মুছে ফেলতে চান?`)) {
+                                    const updatedPkgs = prod.packages.filter((p) => p.id !== pkg.id);
+                                    updateProductPackages(prod.id, updatedPkgs);
+                                  }
+                                }}
+                                className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                                 title="প্যাকেজ মুছে ফেলুন"
                               >
                                 <Trash2 className="w-3 h-3" />
@@ -1064,47 +1210,56 @@ export const AdminDashboard: React.FC = () => {
 
                   {/* Order Status & Actions */}
                   <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200">
-                    {ord.status === 'pending' && (
+                    {isAdmin ? (
                       <>
-                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-950 border border-amber-300">
-                          Pending
-                        </span>
-                        <button
-                          onClick={() => updateOrderStatus(ord.id, 'processing', 'এডমিন থেকে প্রসেসিং কিউতে পাঠানো হয়েছে।')}
-                          className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 cursor-pointer shadow-xs"
-                        >
-                          <RefreshCw className="w-3 h-3 animate-spin" />
-                          <span>Processing এ দিন</span>
-                        </button>
-                        <button
-                          onClick={() => updateOrderStatus(ord.id, 'delivered', 'এডমিন দ্বারা সরাসরি ডেলিভারি সম্পন্ন।')}
-                          className="px-2.5 py-1.5 rounded-lg bg-black hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1 cursor-pointer shadow-xs"
-                        >
-                          <CheckCircle2 className="w-3 h-3" />
-                          <span>Delivered</span>
-                        </button>
-                      </>
-                    )}
+                        {ord.status === 'pending' && (
+                          <>
+                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-950 border border-amber-300">
+                              Pending
+                            </span>
+                            <button
+                              onClick={() => updateOrderStatus(ord.id, 'processing', 'এডমিন থেকে প্রসেসিং কিউতে পাঠানো হয়েছে।')}
+                              className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 cursor-pointer shadow-xs"
+                            >
+                              <RefreshCw className="w-3 h-3 animate-spin" />
+                              <span>Processing এ দিন</span>
+                            </button>
+                            <button
+                              onClick={() => updateOrderStatus(ord.id, 'delivered', 'এডমিন দ্বারা সরাসরি ডেলিভারি সম্পন্ন।')}
+                              className="px-2.5 py-1.5 rounded-lg bg-black hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1 cursor-pointer shadow-xs"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Delivered</span>
+                            </button>
+                          </>
+                        )}
 
-                    {ord.status === 'processing' && (
-                      <>
-                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-950 border border-blue-300">
-                          Processing
-                        </span>
-                        <button
-                          onClick={() => updateOrderStatus(ord.id, 'delivered', 'সরাসরি গেটওয়ে দিয়ে ডেলিভারি সম্পন্ন।')}
-                          className="px-3 py-1.5 rounded-lg bg-black hover:bg-slate-800 text-white font-extrabold text-xs flex items-center gap-1 shadow-xs cursor-pointer"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Delivered করুন</span>
-                        </button>
-                      </>
-                    )}
+                        {ord.status === 'processing' && (
+                          <>
+                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-950 border border-blue-300">
+                              Processing
+                            </span>
+                            <button
+                              onClick={() => updateOrderStatus(ord.id, 'delivered', 'সরাসরি গেটওয়ে দিয়ে ডেলিভারি সম্পন্ন।')}
+                              className="px-3 py-1.5 rounded-lg bg-black hover:bg-slate-800 text-white font-extrabold text-xs flex items-center gap-1 shadow-xs cursor-pointer"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Delivered করুন</span>
+                            </button>
+                          </>
+                        )}
 
-                    {ord.status === 'delivered' && (
-                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-950 border border-emerald-300 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-                        <span>Delivered সম্পন্ন</span>
+                        {ord.status === 'delivered' && (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-950 border border-emerald-300 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                            <span>Delivered সম্পন্ন</span>
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-300 flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-slate-500" />
+                        <span>{ord.status.toUpperCase()} (লকড)</span>
                       </span>
                     )}
                   </div>
@@ -1310,7 +1465,7 @@ export const AdminDashboard: React.FC = () => {
 
             <div className="flex gap-2 pt-2">
               <button
-                onClick={() => {
+                onClick={async () => {
                   const price = parseFloat(newPkgPrice);
                   if (!newPkgName || isNaN(price) || price <= 0) {
                     showToast('সঠিক প্যাকেজ নাম ও মূল্য প্রদান করুন।', 'error');
@@ -1318,17 +1473,17 @@ export const AdminDashboard: React.FC = () => {
                   }
                   const newPkg: TopUpPackage = {
                     id: 'pkg_' + Date.now(),
-                    name: newPkgName,
-                    amount: newPkgAmount || newPkgName,
+                    name: newPkgName.trim(),
+                    amount: newPkgAmount.trim() || newPkgName.trim(),
+                    diamonds: newPkgAmount.trim() || newPkgName.trim(),
                     price: price,
                     instantDelivery: true
                   };
-                  updateProduct({
-                    ...addingPackageToProduct,
-                    packages: [...addingPackageToProduct.packages, newPkg]
-                  });
+                  await updateProductPackages(addingPackageToProduct.id, [
+                    ...addingPackageToProduct.packages,
+                    newPkg
+                  ]);
                   setAddingPackageToProduct(null);
-                  showToast('নতুন প্যাকেজ সফলভাবে যোগ হয়েছে!', 'success');
                 }}
                 className="flex-1 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold text-xs cursor-pointer shadow-xs"
               >
@@ -1336,6 +1491,93 @@ export const AdminDashboard: React.FC = () => {
               </button>
               <button
                 onClick={() => setAddingPackageToProduct(null)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 text-xs font-bold cursor-pointer"
+              >
+                বাতিল
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Package Modal */}
+      {editingPackageProduct && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white border border-slate-300 rounded-2xl p-5 space-y-4 animate-in fade-in shadow-2xl text-black">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="font-extrabold text-sm text-black flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-emerald-600" />
+                <span>প্যাকেজ ও মূল্য পরিবর্তন ({editingPackageProduct.product.title})</span>
+              </h3>
+              <button
+                onClick={() => setEditingPackageProduct(null)}
+                className="text-xs text-black font-bold hover:bg-slate-200 px-2 py-1 bg-slate-100 border border-slate-300 rounded cursor-pointer"
+              >
+                বন্ধ
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="text-slate-800 font-bold block mb-1">প্যাকেজের নাম *</label>
+                <input
+                  type="text"
+                  value={editPkgName}
+                  onChange={(e) => setEditPkgName(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-800 font-bold block mb-1">ডায়মন্ড / অ্যামাউন্ট ট্যাগ</label>
+                <input
+                  type="text"
+                  value={editPkgAmount}
+                  onChange={(e) => setEditPkgAmount(e.target.value)}
+                  placeholder="যেমন: 115 💎"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-800 font-bold block mb-1">বিক্রয়মূল্য (৳) *</label>
+                <input
+                  type="number"
+                  value={editPkgPrice}
+                  onChange={(e) => setEditPkgPrice(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black font-sans font-bold shadow-xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={async () => {
+                  const price = parseFloat(editPkgPrice);
+                  if (!editPkgName || isNaN(price) || price <= 0) {
+                    showToast('সঠিক প্যাকেজ নাম ও মূল্য প্রদান করুন।', 'error');
+                    return;
+                  }
+                  const updatedPkgs = editingPackageProduct.product.packages.map((p) =>
+                    p.id === editingPackageProduct.package.id
+                      ? {
+                          ...p,
+                          name: editPkgName.trim(),
+                          amount: editPkgAmount.trim() || editPkgName.trim(),
+                          diamonds: editPkgAmount.trim() || editPkgName.trim(),
+                          price: price
+                        }
+                      : p
+                  );
+                  await updateProductPackages(editingPackageProduct.product.id, updatedPkgs);
+                  setEditingPackageProduct(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold text-xs cursor-pointer shadow-xs"
+              >
+                আপডেট সেভ করুন
+              </button>
+              <button
+                onClick={() => setEditingPackageProduct(null)}
                 className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 text-xs font-bold cursor-pointer"
               >
                 বাতিল
@@ -1364,14 +1606,49 @@ export const AdminDashboard: React.FC = () => {
 
             <div className="space-y-3.5 text-xs">
               <div>
-                <label className="text-slate-800 font-bold block mb-1">গেম বা কার্ডের নাম *</label>
+                <label className="text-slate-800 font-bold block mb-1">প্রোডাক্টের নাম (Title) *</label>
                 <input
                   type="text"
                   value={newProductTitle}
                   onChange={(e) => setNewProductTitle(e.target.value)}
-                  placeholder="যেমন: FC Mobile Points বা Honor of Kings Tokens"
+                  placeholder="যেমন: FC Mobile Points বা Friday offer"
                   className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs font-bold"
                 />
+              </div>
+
+              <div>
+                <label className="text-slate-800 font-bold block mb-1">প্রোডাক্টের বিবরণ (Description) *</label>
+                <textarea
+                  rows={2}
+                  value={newProductDescription}
+                  onChange={(e) => setNewProductDescription(e.target.value)}
+                  placeholder="যেমন: বাংলাদেশ সার্ভারের জন্য অফিসিয়াল টপ-আপ। দ্রুত ও নিরাপদ ডেলিভারি।"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-800 font-bold block mb-1">ব্যাজ ট্যাগ (badgeTag) *</label>
+                  <input
+                    type="text"
+                    value={newProductBadge}
+                    onChange={(e) => setNewProductBadge(e.target.value)}
+                    placeholder="যেমন: Special Offer, BD Server ইত্যাদি"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-800 font-bold block mb-1">সর্ট অর্ডার (sortOrder)</label>
+                  <input
+                    type="number"
+                    value={newProductSortOrder}
+                    onChange={(e) => setNewProductSortOrder(parseInt(e.target.value) || 1)}
+                    placeholder="1, 2, 3..."
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs font-sans font-bold"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1389,19 +1666,6 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-slate-800 font-bold block mb-1">সাব-ক্যাটেগরি / টাইপ</label>
-                  <input
-                    type="text"
-                    value={newProductSubCategory}
-                    onChange={(e) => setNewProductSubCategory(e.target.value)}
-                    placeholder="যেমন: BD Server বা Special Offer"
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
                   <label className="text-slate-800 font-bold block mb-1">প্লেয়ার আইডি লেবেল *</label>
                   <input
                     type="text"
@@ -1411,34 +1675,24 @@ export const AdminDashboard: React.FC = () => {
                     className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs font-mono"
                   />
                 </div>
-
-                <div>
-                  <label className="text-slate-800 font-bold block mb-1">ব্যাজ (Badge Tag)</label>
-                  <input
-                    type="text"
-                    value={newProductBadge}
-                    onChange={(e) => setNewProductBadge(e.target.value)}
-                    placeholder="নতুন সংযুক্ত 🔥"
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs"
-                  />
-                </div>
               </div>
 
               {/* Image Selection with Presets */}
               <div className="space-y-2 p-3 rounded-xl bg-slate-50 border border-slate-200 shadow-xs">
                 <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-black block">প্রোডাক্টের কভার ছবি</span>
+                  <span className="font-extrabold text-black block">ব্যানার ছবির লিংক (bannerImageUrl) *</span>
                   <img
                     src={newProductImageUrl}
                     alt="Preview"
                     className="w-8 h-8 rounded-lg object-cover border border-slate-300"
+                    onError={(e) => { (e.target as HTMLImageElement).src = '/dc_logo.jpg'; }}
                   />
                 </div>
                 <input
                   type="text"
                   value={newProductImageUrl}
                   onChange={(e) => setNewProductImageUrl(e.target.value)}
-                  placeholder="ছবির লিঙ্ক (URL)"
+                  placeholder="ছবির লিঙ্ক (URL পেস্ট করুন)"
                   className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-black"
                 />
 
@@ -1463,7 +1717,7 @@ export const AdminDashboard: React.FC = () => {
               {/* Starter Packages Builder */}
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2 shadow-xs">
                 <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-black block">প্যাকেজসমূহ ও বিক্রয়মূল্য</span>
+                  <span className="font-extrabold text-black block">প্যাকেজসমূহ ও বিক্রয়মূল্য (packages)</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -1498,7 +1752,7 @@ export const AdminDashboard: React.FC = () => {
                       <div className="col-span-4">
                         <input
                           type="text"
-                          placeholder="অ্যামাউন্ট"
+                          placeholder="অ্যামাউন্ট / ডায়মন্ড"
                           value={pkg.amount}
                           onChange={(e) => {
                             const updated = [...newPackageList];
@@ -1543,27 +1797,31 @@ export const AdminDashboard: React.FC = () => {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => {
-                  if (!newProductTitle) {
+                  if (!newProductTitle.trim()) {
                     showToast('প্রোডাক্টের নাম লিখুন।', 'error');
                     return;
                   }
                   const newProd: TopUpProduct = {
                     id: 'prod_' + Date.now(),
-                    title: newProductTitle,
+                    title: newProductTitle.trim(),
                     category: newProductCategory,
-                    subCategory: newProductSubCategory,
-                    badge: newProductBadge || 'নতুন অফার 🔥',
-                    description: newProductDescription || `${newProductTitle} সরাসরি ${newProductPlayerIdLabel} দিয়ে দ্রুত টপ-আপ করুন।`,
-                    playerIdLabel: newProductPlayerIdLabel,
-                    image: newProductImageUrl || '/src/assets/images/ff_friday_offer_1790099054219.jpg',
+                    subCategory: newProductSubCategory.trim() || 'Special Offer',
+                    badge: newProductBadge.trim() || 'Special Offer',
+                    badgeTag: newProductBadge.trim() || 'Special Offer',
+                    description: newProductDescription.trim() || `${newProductTitle.trim()} সরাসরি ${newProductPlayerIdLabel} দিয়ে দ্রুত টপ-আপ করুন।`,
+                    playerIdLabel: newProductPlayerIdLabel.trim() || 'Player ID (UID)',
+                    image: newProductImageUrl.trim() || '/images/ff_friday_offer_1790099054219.jpg',
+                    bannerImageUrl: newProductImageUrl.trim() || '/images/ff_friday_offer_1790099054219.jpg',
                     bannerGradient: 'from-blue-600/30 to-purple-950/60',
                     isActive: true,
+                    sortOrder: Number(newProductSortOrder) || (products.length + 1),
                     isOutOfStock: false,
                     packages: newPackageList.map((p, i) => ({
                       id: 'pkg_' + Date.now() + '_' + i,
-                      name: p.name,
-                      amount: p.amount,
-                      price: p.price,
+                      name: p.name.trim(),
+                      amount: p.amount.trim() || p.name.trim(),
+                      diamonds: p.amount.trim() || p.name.trim(),
+                      price: Number(p.price) || 0,
                       popular: p.popular,
                       instantDelivery: true
                     }))
@@ -1571,6 +1829,8 @@ export const AdminDashboard: React.FC = () => {
                   addProduct(newProd);
                   setShowAddProductModal(false);
                   setNewProductTitle('');
+                  setNewProductDescription('');
+                  setNewProductBadge('Special Offer');
                 }}
                 className="flex-1 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold text-xs cursor-pointer shadow-xs"
               >
@@ -1578,6 +1838,128 @@ export const AdminDashboard: React.FC = () => {
               </button>
               <button
                 onClick={() => setShowAddProductModal(false)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 text-xs font-bold cursor-pointer"
+              >
+                বাতিল
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Existing Product Details Modal */}
+      {editingDetailsProduct && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-lg bg-white border border-slate-300 rounded-2xl p-5 space-y-4 animate-in fade-in shadow-2xl text-black my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="font-extrabold text-base text-black flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-blue-600" />
+                <span>প্রোডাক্ট বিবরণ এডিট করুন ({editingDetailsProduct.title})</span>
+              </h3>
+              <button
+                onClick={() => setEditingDetailsProduct(null)}
+                className="text-xs text-black font-bold hover:bg-slate-200 px-2 py-1 bg-slate-100 border border-slate-300 rounded cursor-pointer"
+              >
+                বন্ধ
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div>
+                <label className="text-slate-800 font-bold block mb-1">প্রোডাক্টের নাম (Title) *</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-800 font-bold block mb-1">প্রোডাক্টের বিবরণ (Description) *</label>
+                <textarea
+                  rows={3}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-800 font-bold block mb-1">ব্যাজ ট্যাগ (badgeTag) *</label>
+                  <input
+                    type="text"
+                    value={editBadgeTag}
+                    onChange={(e) => setEditBadgeTag(e.target.value)}
+                    placeholder="Special Offer"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-800 font-bold block mb-1">সর্ট অর্ডার (sortOrder)</label>
+                  <input
+                    type="number"
+                    value={editSortOrder}
+                    onChange={(e) => setEditSortOrder(parseInt(e.target.value) || 1)}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs font-sans font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-800 font-bold block mb-1">ক্যাটেগরি *</label>
+                  <select
+                    value={editCategory}
+                    onChange={(e: any) => setEditCategory(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs font-semibold"
+                  >
+                    <option value="gaming">গেম অফার ও মেম্বারশিপ (Gaming)</option>
+                    <option value="tiktok">টিকটক সার্ভিস (TikTok)</option>
+                    <option value="facebook">ফেসবুক সার্ভিস (Facebook)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-slate-800 font-bold block mb-1">প্লেয়ার আইডি লেবেল</label>
+                  <input
+                    type="text"
+                    value={editPlayerIdLabel}
+                    onChange={(e) => setEditPlayerIdLabel(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={async () => {
+                  if (!editTitle.trim()) {
+                    showToast('প্রোডাক্টের নাম দেওয়া আবশ্যক।', 'error');
+                    return;
+                  }
+                  await updateProduct({
+                    ...editingDetailsProduct,
+                    title: editTitle.trim(),
+                    description: editDescription.trim(),
+                    badgeTag: editBadgeTag.trim() || 'Special Offer',
+                    badge: editBadgeTag.trim() || 'Special Offer',
+                    sortOrder: Number(editSortOrder) || 1,
+                    category: editCategory,
+                    subCategory: editSubCategory.trim() || editingDetailsProduct.subCategory,
+                    playerIdLabel: editPlayerIdLabel.trim() || 'Player ID (UID)'
+                  });
+                  setEditingDetailsProduct(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold text-xs cursor-pointer shadow-xs"
+              >
+                আপডেট সেভ করুন
+              </button>
+              <button
+                onClick={() => setEditingDetailsProduct(null)}
                 className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 text-xs font-bold cursor-pointer"
               >
                 বাতিল

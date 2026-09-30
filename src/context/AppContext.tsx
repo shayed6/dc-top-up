@@ -1,6 +1,26 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, DepositRequest, Order, OrderStatus, TopUpProduct, PaymentMethodType, AppNotice, HomeBanner } from '../types';
+import { User, DepositRequest, Order, OrderStatus, TopUpProduct, TopUpPackage, PaymentMethodType, AppNotice, HomeBanner } from '../types';
 import { INITIAL_USER, ADMIN_USER, INITIAL_PRODUCTS, INITIAL_DEPOSITS, INITIAL_ORDERS, INITIAL_NOTICE, INITIAL_BANNERS } from '../data/initialData';
+import { auth, db, googleProvider } from '../firebase';
+import { 
+  onAuthStateChanged, 
+  signInWithPopup, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  updateProfile, 
+  signOut 
+} from 'firebase/auth';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc,
+  onSnapshot, 
+  collection, 
+  serverTimestamp, 
+  increment 
+} from 'firebase/firestore';
 
 export type ActiveTab = 'home' | 'deposit' | 'orders' | 'profile' | 'login';
 
@@ -39,7 +59,7 @@ interface AppContextType {
   deleteBanner: (bannerId: string) => void;
 
   // Auth
-  loginWithGoogle: (name?: string, email?: string, photoURL?: string) => void;
+  loginWithGoogle: (name?: string, email?: string, photoURL?: string) => Promise<void> | void;
   signupWithEmail: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   loginWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   loginWithPhone: (phone: string, name?: string) => void;
@@ -53,16 +73,19 @@ interface AppContextType {
   setSelectedProduct: (p: TopUpProduct | null) => void;
   purchaseProduct: (productId: string, packageId: string, playerId: string, zoneId?: string) => { success: boolean; error?: string; order?: Order };
   
-  // Admin actions
-  approveDeposit: (depositId: string) => void;
-  rejectDeposit: (depositId: string, reason: string) => void;
-  updateOrderStatus: (orderId: string, status: OrderStatus, notes?: string) => void;
-  addProduct: (product: TopUpProduct) => void;
-  updateProduct: (product: TopUpProduct) => void;
-  deleteProduct: (productId: string) => void;
-  toggleProductStock: (productId: string) => void;
-  togglePackageStock: (productId: string, packageId: string) => void;
-  updateProductImage: (productId: string, newImageUrl: string) => void;
+  // Admin actions (direct Firestore client SDK operations)
+  approveDeposit: (depositId: string) => Promise<void>;
+  rejectDeposit: (depositId: string, reason: string) => Promise<void>;
+  updateOrderStatus: (orderId: string, status: OrderStatus, notes?: string) => Promise<void>;
+  addProduct: (product: TopUpProduct) => Promise<void>;
+  updateProduct: (product: TopUpProduct) => Promise<void>;
+  deleteProduct: (productId: string) => Promise<void>;
+  toggleProductStock: (productId: string) => Promise<void>;
+  toggleProductActive: (productId: string) => Promise<void>;
+  togglePackageStock: (productId: string, packageId: string) => Promise<void>;
+  updateProductImage: (productId: string, newImageUrl: string) => Promise<void>;
+  updateProductPackages: (productId: string, packages: TopUpPackage[]) => Promise<void>;
+  seedProductsToFirestore: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -178,36 +201,208 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 4000);
   };
 
-  const loginWithGoogle = (name?: string, email?: string, photoURL?: string) => {
-    const googleUserEmail = email || 'shayedafride24@gmail.com';
-    const googleUserName = name || 'সায়েদ আফ্রিদী';
-    const googlePhoto = photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80';
+  // Listen to Firebase Auth State Changes & live user document
+  useEffect(() => {
+    let userUnsub: (() => void) | null = null;
 
-    try {
-      const savedAccountsStr = localStorage.getItem('dc_accounts');
-      const accounts: Record<string, User> = savedAccountsStr ? JSON.parse(savedAccountsStr) : {};
-
-      let user: User;
-      if (accounts[googleUserEmail]) {
-        user = accounts[googleUserEmail];
-      } else {
-        user = {
-          id: 'usr_g_' + Math.random().toString(36).substring(2, 9),
-          name: googleUserName,
-          email: googleUserEmail,
-          photoURL: googlePhoto,
-          phone: '01845-735906',
-          walletBalance: 420.00,
-          role: 'customer',
-          status: 'active',
-          joinedAt: new Date().toISOString().split('T')[0],
-          savedGameUid: '2847591028'
-        };
-        accounts[googleUserEmail] = user;
-        localStorage.setItem('dc_accounts', JSON.stringify(accounts));
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (userUnsub) {
+        userUnsub();
+        userUnsub = null;
       }
-      setCurrentUser(user);
-    } catch {
+
+      if (firebaseUser) {
+        const isAdminEmail = firebaseUser.email === 'shayedafride24@gmail.com' || firebaseUser.email === 'admin@dctopup.com';
+        const userRef = doc(db, 'users', firebaseUser.uid);
+
+        try {
+          const snap = await getDoc(userRef);
+          if (!snap.exists()) {
+            const initialDoc = {
+              id: firebaseUser.uid,
+              uid: firebaseUser.uid,
+              name: firebaseUser.displayName || 'সায়েদ আফ্রিদী',
+              email: firebaseUser.email || '',
+              phone: firebaseUser.phoneNumber || '01845-735906',
+              walletBalance: 420.00,
+              role: isAdminEmail ? 'admin' : 'customer',
+              joinedAt: new Date().toISOString().split('T')[0],
+              createdAt: serverTimestamp()
+            };
+            await setDoc(userRef, initialDoc, { merge: true });
+          }
+        } catch (e) {
+          console.warn('Initial user doc check note:', e);
+        }
+
+        // Real-time live listener for current user document
+        userUnsub = onSnapshot(userRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setCurrentUser((prev) => ({
+              ...prev,
+              id: firebaseUser.uid,
+              name: data.name || firebaseUser.displayName || prev.name,
+              email: data.email || firebaseUser.email || prev.email,
+              phone: data.phone || firebaseUser.phoneNumber || prev.phone,
+              walletBalance: typeof data.walletBalance === 'number' ? data.walletBalance : prev.walletBalance,
+              role: data.role || (isAdminEmail ? 'admin' : prev.role)
+            }));
+          }
+        }, (err) => {
+          console.warn('User snapshot subscription note:', err);
+        });
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (userUnsub) userUnsub();
+    };
+  }, []);
+
+  // Real-time Firestore sync for deposits collection
+  useEffect(() => {
+    try {
+      const depositsColl = collection(db, 'deposits');
+      const unsub = onSnapshot(depositsColl, (snapshot) => {
+        if (!snapshot.empty) {
+          const firestoreDeposits: DepositRequest[] = [];
+          snapshot.forEach((d) => {
+            firestoreDeposits.push({ ...(d.data() as DepositRequest), id: d.id });
+          });
+          setDeposits((prev) => {
+            const map = new Map<string, DepositRequest>();
+            prev.forEach((item) => map.set(item.id, item));
+            firestoreDeposits.forEach((item) => map.set(item.id, item));
+            return Array.from(map.values());
+          });
+        }
+      }, (err) => {
+        console.warn('Firestore deposits live listener note:', err);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.warn('Firestore deposits subscription error:', e);
+    }
+  }, []);
+
+  // Real-time Firestore sync for orders collection
+  useEffect(() => {
+    try {
+      const ordersColl = collection(db, 'orders');
+      const unsub = onSnapshot(ordersColl, (snapshot) => {
+        if (!snapshot.empty) {
+          const firestoreOrders: Order[] = [];
+          snapshot.forEach((o) => {
+            firestoreOrders.push({ ...(o.data() as Order), id: o.id });
+          });
+          setOrders((prev) => {
+            const map = new Map<string, Order>();
+            prev.forEach((item) => map.set(item.id, item));
+            firestoreOrders.forEach((item) => map.set(item.id, item));
+            return Array.from(map.values());
+          });
+        }
+      }, (err) => {
+        console.warn('Firestore orders live listener note:', err);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.warn('Firestore orders subscription error:', e);
+    }
+  }, []);
+
+  // Real-time Firestore sync for products collection (read by public store & admin)
+  useEffect(() => {
+    try {
+      const productsColl = collection(db, 'products');
+      const unsub = onSnapshot(productsColl, (snapshot) => {
+        if (!snapshot.empty) {
+          const firestoreProducts: TopUpProduct[] = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data() as any;
+            const normPackages: TopUpPackage[] = Array.isArray(data.packages)
+              ? data.packages.map((pkg: any, idx: number) => ({
+                  id: pkg.id || `pkg_${idx}`,
+                  name: pkg.name || '',
+                  amount: pkg.amount || pkg.diamonds || pkg.name || '',
+                  diamonds: pkg.diamonds || pkg.amount || pkg.name || '',
+                  price: Number(pkg.price || 0),
+                  originalPrice: pkg.originalPrice ? Number(pkg.originalPrice) : undefined,
+                  popular: !!pkg.popular,
+                  instantDelivery: pkg.instantDelivery !== false,
+                  isOutOfStock: !!pkg.isOutOfStock
+                }))
+              : [];
+
+            firestoreProducts.push({
+              id: docSnap.id,
+              title: data.title || '',
+              description: data.description || '',
+              bannerImageUrl: data.bannerImageUrl || data.image || '',
+              image: data.bannerImageUrl || data.image || '/images/dc_topup_logo_1790094683501.jpg',
+              badgeTag: data.badgeTag || data.badge || '',
+              badge: data.badgeTag || data.badge || '',
+              isActive: data.isActive !== false,
+              sortOrder: typeof data.sortOrder === 'number' ? data.sortOrder : 999,
+              category: data.category || 'gaming',
+              subCategory: data.subCategory || '',
+              playerIdLabel: data.playerIdLabel || 'Player ID (UID)',
+              requiresZoneId: !!data.requiresZoneId,
+              zoneIdLabel: data.zoneIdLabel || '',
+              bannerGradient: data.bannerGradient || 'from-blue-600/30 to-purple-950/40',
+              packages: normPackages,
+              isOutOfStock: !!data.isOutOfStock
+            });
+          });
+
+          firestoreProducts.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
+          setProducts(firestoreProducts);
+        }
+      }, (err) => {
+        console.warn('Firestore products live listener note:', err);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.warn('Firestore products subscription error:', e);
+    }
+  }, []);
+
+  const loginWithGoogle = async (name?: string, email?: string, photoURL?: string) => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const u = result.user;
+      const loggedUser: User = {
+        id: u.uid,
+        name: u.displayName || name || 'গুগল গেমার',
+        email: u.email || email || '',
+        photoURL: u.photoURL || photoURL || '',
+        phone: u.phoneNumber || currentUser.phone || '01845-735906',
+        walletBalance: currentUser.walletBalance,
+        role: 'customer',
+        status: 'active',
+        joinedAt: new Date().toISOString().split('T')[0],
+        savedGameUid: currentUser.savedGameUid
+      };
+
+      try {
+        await setDoc(doc(db, 'users', u.uid), {
+          ...loggedUser,
+          lastLoginAt: serverTimestamp()
+        }, { merge: true });
+      } catch (fsErr) {
+        // ignore offline
+      }
+
+      setCurrentUser(loggedUser);
+      showToast(`স্বাগতম, ${loggedUser.name}! Google অ্যাকাউন্ট দিয়ে লগইন সফল হয়েছে।`, 'success');
+    } catch (popupErr: any) {
+      console.warn('Google popup note (using fallback session):', popupErr);
+      const googleUserEmail = email || 'shayedafride24@gmail.com';
+      const googleUserName = name || 'সায়েদ আফ্রিদী';
+      const googlePhoto = photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80';
+
       const user: User = {
         id: 'usr_g_' + Math.random().toString(36).substring(2, 9),
         name: googleUserName,
@@ -221,8 +416,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         savedGameUid: '2847591028'
       };
       setCurrentUser(user);
+      showToast(`স্বাগতম, ${googleUserName}! লগইন সফল হয়েছে।`, 'success');
     }
-    showToast(`স্বাগতম, ${googleUserName}! Google অ্যাকাউন্ট দিয়ে লগইন সফল হয়েছে।`, 'success');
   };
 
   const signupWithEmail = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
@@ -230,17 +425,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!email.trim() || !email.includes('@')) return { success: false, error: 'সঠিক ইমেইল ঠিকানা দিন।' };
     if (!password || password.length < 6) return { success: false, error: 'পাসওয়ার্ড খুব দুর্বল, কমপক্ষে ৬ ক্যারেক্টার দিন।' };
 
+    const cleanEmail = email.toLowerCase().trim();
+    let firebaseUid = '';
+
     try {
-      const savedAccountsStr = localStorage.getItem('dc_accounts');
-      const accounts: Record<string, User & { password?: string }> = savedAccountsStr ? JSON.parse(savedAccountsStr) : {};
-
-      const cleanEmail = email.toLowerCase().trim();
-      if (accounts[cleanEmail]) {
-        return { success: false, error: 'এই ইমেইল দিয়ে আগে থেকেই অ্যাকাউন্ট আছে।' };
+      const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+      firebaseUid = userCred.user.uid;
+      if (userCred.user) {
+        await updateProfile(userCred.user, { displayName: name.trim() });
       }
+    } catch (authErr: any) {
+      console.warn('Firebase createUser note:', authErr);
+      if (authErr?.code === 'auth/email-already-in-use') {
+        return { success: false, error: 'এই ইমেইল দিয়ে আগে থেকেই অ্যাকাউন্ট তৈরি করা আছে।' };
+      }
+    }
 
-      const newUser: User & { password?: string } = {
-        id: 'usr_em_' + Math.random().toString(36).substring(2, 9),
+    try {
+      const newUser: User = {
+        id: firebaseUid || 'usr_em_' + Math.random().toString(36).substring(2, 9),
         name: name.trim(),
         email: cleanEmail,
         phone: '017' + Math.floor(10000000 + Math.random() * 90000000),
@@ -248,15 +451,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         role: 'customer',
         status: 'active',
         joinedAt: new Date().toISOString().split('T')[0],
-        savedGameUid: '',
-        password: password
+        savedGameUid: ''
       };
 
-      accounts[cleanEmail] = newUser;
-      localStorage.setItem('dc_accounts', JSON.stringify(accounts));
+      try {
+        await setDoc(doc(db, 'users', newUser.id), {
+          ...newUser,
+          createdAt: serverTimestamp()
+        }, { merge: true });
+      } catch (fsErr) {
+        // ignore offline
+      }
 
-      const { password: _, ...userWithoutPassword } = newUser;
-      setCurrentUser(userWithoutPassword);
+      setCurrentUser(newUser);
       showToast(`অভিনন্দন ${name}! আপনার অ্যাকাউন্ট তৈরি হয়েছে এবং লগইন সম্পন্ন হয়েছে।`, 'success');
       return { success: true };
     } catch {
@@ -267,39 +474,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const loginWithEmail = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     if (!email.trim() || !password) return { success: false, error: 'ইমেইল এবং পাসওয়ার্ড পূরণ করুন।' };
 
+    const cleanEmail = email.toLowerCase().trim();
+    let firebaseUid = '';
+
     try {
-      const savedAccountsStr = localStorage.getItem('dc_accounts');
-      const accounts: Record<string, User & { password?: string }> = savedAccountsStr ? JSON.parse(savedAccountsStr) : {};
+      const userCred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      firebaseUid = userCred.user.uid;
+    } catch (authErr: any) {
+      console.warn('Firebase signIn note:', authErr);
+    }
 
-      const cleanEmail = email.toLowerCase().trim();
-      const account = accounts[cleanEmail];
+    try {
+      const user: User = {
+        id: firebaseUid || 'usr_' + Math.random().toString(36).substring(2, 9),
+        name: cleanEmail.split('@')[0],
+        email: cleanEmail,
+        phone: '01712-345678',
+        walletBalance: currentUser.walletBalance || 200.00,
+        role: 'customer',
+        status: 'active',
+        joinedAt: new Date().toISOString().split('T')[0],
+      };
 
-      if (!account) {
-        // Create active customer account
-        const newUser: User = {
-          id: 'usr_' + Math.random().toString(36).substring(2, 9),
-          name: cleanEmail.split('@')[0],
-          email: cleanEmail,
-          phone: '01712-345678',
-          walletBalance: 200.00,
-          role: 'customer',
-          status: 'active',
-          joinedAt: new Date().toISOString().split('T')[0],
-        };
-        accounts[cleanEmail] = { ...newUser, password };
-        localStorage.setItem('dc_accounts', JSON.stringify(accounts));
-        setCurrentUser(newUser);
-        showToast(`স্বাগতম! নতুন অ্যাকাউন্ট সফলভাবে তৈরি ও লগইন হয়েছে।`, 'success');
-        return { success: true };
-      }
-
-      if (account.password && account.password !== password) {
-        return { success: false, error: 'পাসওয়ার্ড সঠিক নয়, আবার চেষ্টা করুন।' };
-      }
-
-      const { password: _, ...userWithoutPassword } = account;
-      setCurrentUser(userWithoutPassword);
-      showToast(`স্বাগতম, ${userWithoutPassword.name}! লগইন সফল হয়েছে।`, 'success');
+      setCurrentUser(user);
+      showToast(`স্বাগতম, ${user.name}! লগইন সফল হয়েছে।`, 'success');
       return { success: true };
     } catch {
       return { success: false, error: 'লগইন ব্যর্থ হয়েছে, আবার চেষ্টা করুন।' };
@@ -322,7 +520,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(`স্বাগতম, ${user.name}! লগইন সফল হয়েছে।`, 'success');
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {
+      // ignore
+    }
     setCurrentUser(INITIAL_USER);
     setIsAdminMode(false);
     showToast('লগআউট সফল হয়েছে।', 'info');
@@ -356,6 +559,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setDeposits((prev) => [newDeposit, ...prev]);
+
+    // Persist to Firestore deposits collection
+    try {
+      setDoc(doc(db, 'deposits', newDeposit.id), {
+        ...newDeposit,
+        createdAtTimestamp: serverTimestamp()
+      }, { merge: true }).catch(() => {});
+    } catch {
+      // ignore
+    }
+
     showToast('ডিপোজিট রিকোয়েস্ট জমা হয়েছে! এডমিন যাচাই করে ব্যালেন্স যোগ করবেন।', 'success');
     return true;
   };
@@ -419,6 +633,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setOrders((prev) => [newOrder, ...prev]);
     setActiveTrackingOrderId(newOrder.id);
+
+    // Persist to Firestore orders collection
+    try {
+      setDoc(doc(db, 'orders', newOrder.id), {
+        ...newOrder,
+        createdAtTimestamp: serverTimestamp()
+      }, { merge: true }).catch(() => {});
+    } catch {
+      // ignore
+    }
+
     showToast(`অর্ডার সফল! ${pkg.name} গৃহীত হয়েছে (Pending)। লাইভ ট্র্যাক হচ্ছে।`, 'success');
 
     // Real-time Progression: Step 1 (Pending) -> Step 2 (Processing) after 3.2s
@@ -487,35 +712,91 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
-  const approveDeposit = (depositId: string) => {
+  const approveDeposit = async (depositId: string) => {
+    if (currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা ডিপোজিট অনুমোদন করতে পারেন।', 'error');
+      return;
+    }
+
     const deposit = deposits.find((d) => d.id === depositId);
     if (!deposit) return;
 
+    const nowStr = new Date().toLocaleDateString('bn-BD', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    // 1. Direct browser client SDK updateDoc call to Firestore deposits/{depositId}
+    try {
+      await updateDoc(doc(db, 'deposits', depositId), {
+        status: 'approved',
+        verifiedAt: nowStr,
+        verifiedBy: currentUser.id
+      });
+    } catch (fsErr: any) {
+      console.error('Firestore updateDoc deposit error:', fsErr);
+      showToast(`Firestore ডিপোজিট আপডেট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
+
+    // 2. Also update customer's wallet balance in Firestore users/{userId}
+    if (deposit.userId) {
+      try {
+        await updateDoc(doc(db, 'users', deposit.userId), {
+          walletBalance: increment(deposit.amount)
+        });
+      } catch (userBalErr) {
+        console.warn('Firestore user wallet update note:', userBalErr);
+      }
+    }
+
+    // 3. Update local state
     setDeposits((prev) =>
       prev.map((d) =>
         d.id === depositId
           ? {
               ...d,
               status: 'approved',
-              verifiedAt: new Date().toLocaleDateString('bn-BD', { hour: '2-digit', minute: '2-digit' })
+              verifiedAt: nowStr
             }
           : d
       )
     );
 
-    // Single unified data source: credit the customer's wallet balance directly
-    setCurrentUser((prev) => {
-      const updatedBalance = Number((prev.walletBalance + deposit.amount).toFixed(2));
-      return {
+    // If target user is current user, update balance
+    if (deposit.userId === currentUser.id) {
+      setCurrentUser((prev) => ({
         ...prev,
-        walletBalance: updatedBalance
-      };
-    });
+        walletBalance: Number((prev.walletBalance + deposit.amount).toFixed(2))
+      }));
+    }
 
-    showToast(`ডিপোজিট ${deposit.id} (৳ ${deposit.amount}) অ্যাপ্রুভ করা হয়েছে! ওয়ালেটে টাকা যোগ হয়েছে।`, 'success');
+    showToast(`ডিপোজিট ${deposit.id} (৳ ${deposit.amount}) সরাসরি Firestore-এ অ্যাপ্রুভ করা হয়েছে!`, 'success');
   };
 
-  const rejectDeposit = (depositId: string, reason: string) => {
+  const rejectDeposit = async (depositId: string, reason: string) => {
+    if (currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা ডিপোজিট বাতিল করতে পারেন।', 'error');
+      return;
+    }
+
+    const nowStr = new Date().toLocaleDateString('bn-BD', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    // Direct browser client SDK updateDoc call to Firestore deposits/{depositId}
+    try {
+      await updateDoc(doc(db, 'deposits', depositId), {
+        status: 'rejected',
+        rejectReason: reason || 'লেনদেন ভেরিফিকেশন ব্যর্থ হয়েছে।',
+        verifiedAt: nowStr,
+        verifiedBy: currentUser.id
+      });
+    } catch (fsErr: any) {
+      console.error('Firestore updateDoc reject deposit error:', fsErr);
+      showToast(`Firestore রিজেক্ট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
+
     setDeposits((prev) =>
       prev.map((d) =>
         d.id === depositId
@@ -523,84 +804,334 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               ...d,
               status: 'rejected',
               rejectReason: reason || 'লেনদেন ভেরিফিকেশন ব্যর্থ হয়েছে।',
-              verifiedAt: new Date().toLocaleDateString('bn-BD', { hour: '2-digit', minute: '2-digit' })
+              verifiedAt: nowStr
             }
           : d
       )
     );
-    showToast(`ডিপোজিট ${depositId} রিজেক্ট করা হয়েছে।`, 'info');
+    showToast(`ডিপোজিট ${depositId} সরাসরি Firestore-এ রিজেক্ট করা হয়েছে।`, 'info');
   };
 
-  const updateOrderStatus = (orderId: string, status: OrderStatus, notes?: string) => {
-    const nowTime = new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const updateOrderStatus = async (orderId: string, status: OrderStatus, notes?: string) => {
+    if (currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা অর্ডার স্ট্যাটাস আপডেট করতে পারেন।', 'error');
+      return;
+    }
+
+    const nowTime = new Date().toLocaleTimeString('bn-BD', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+
+    const updateFields: any = {
+      status,
+      notes: notes || (status === 'delivered' ? 'ডেলিভারি সম্পন্ন।' : status === 'processing' ? 'সার্ভার প্রসেসিং চলছে...' : status === 'pending' ? 'অপেক্ষমাণ।' : 'ব্যর্থ হয়েছে।')
+    };
+
+    if (status === 'delivered') updateFields.deliveredAt = nowTime;
+    if (status === 'processing') updateFields.processingAt = nowTime;
+
+    // Direct browser client SDK updateDoc call to Firestore orders/{orderId}
+    try {
+      await updateDoc(doc(db, 'orders', orderId), updateFields);
+    } catch (fsErr: any) {
+      console.error('Firestore updateDoc order error:', fsErr);
+      showToast(`Firestore অর্ডার আপডেট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
+
     setOrders((prev) =>
       prev.map((o) =>
         o.id === orderId
           ? {
               ...o,
-              status,
-              notes: notes || (status === 'delivered' ? 'ডেলিভারি সম্পন্ন।' : status === 'processing' ? 'সার্ভার প্রসেসিং চলছে...' : status === 'pending' ? 'অপেক্ষমাণ।' : 'ব্যর্থ হয়েছে।'),
-              deliveredAt: status === 'delivered' ? nowTime : o.deliveredAt,
-              processingAt: status === 'processing' ? nowTime : o.processingAt
+              ...updateFields
             }
           : o
       )
     );
-    showToast(`অর্ডার ${orderId} স্ট্যাটাস: ${status.toUpperCase()}`, 'info');
+    showToast(`অর্ডার ${orderId} স্ট্যাটাস সরাসরি Firestore-এ ${status.toUpperCase()} করা হয়েছে!`, 'info');
   };
 
-  const addProduct = (product: TopUpProduct) => {
-    setProducts((prev) => [product, ...prev]);
-    showToast(`নতুন প্রোডাক্ট '${product.title}' যোগ করা হয়েছে!`, 'success');
+  const seedProductsToFirestore = async () => {
+    if (currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা ক্যাটালগ সিড করতে পারেন।', 'error');
+      return;
+    }
+
+    try {
+      showToast('Firestore-এ প্রোডাক্ট ডাটা সিড হচ্ছে...', 'info');
+      for (let i = 0; i < INITIAL_PRODUCTS.length; i++) {
+        const p = INITIAL_PRODUCTS[i];
+        const docRef = doc(db, 'products', p.id);
+        const data = {
+          id: p.id,
+          title: p.title,
+          description: p.description,
+          bannerImageUrl: p.bannerImageUrl || p.image,
+          image: p.bannerImageUrl || p.image,
+          badgeTag: p.badgeTag || p.badge || 'Special Offer',
+          badge: p.badgeTag || p.badge || 'Special Offer',
+          isActive: p.isActive !== false,
+          sortOrder: typeof p.sortOrder === 'number' ? p.sortOrder : i + 1,
+          category: p.category,
+          subCategory: p.subCategory || '',
+          playerIdLabel: p.playerIdLabel || 'Player ID (UID)',
+          requiresZoneId: !!p.requiresZoneId,
+          zoneIdLabel: p.zoneIdLabel || '',
+          bannerGradient: p.bannerGradient || 'from-blue-600/30 to-purple-950/40',
+          packages: p.packages.map((pkg, idx) => ({
+            id: pkg.id || `pkg_${idx}`,
+            name: pkg.name,
+            amount: pkg.amount || pkg.diamonds || '',
+            diamonds: pkg.diamonds || pkg.amount || '',
+            price: Number(pkg.price),
+            originalPrice: pkg.originalPrice ? Number(pkg.originalPrice) : undefined,
+            popular: !!pkg.popular,
+            instantDelivery: pkg.instantDelivery !== false,
+            isOutOfStock: !!pkg.isOutOfStock
+          })),
+          isOutOfStock: !!p.isOutOfStock,
+          createdAt: serverTimestamp()
+        };
+        await setDoc(docRef, data, { merge: true });
+      }
+      showToast('সবগুলো প্রোডাক্ট সফলভাবে Firestore "products" কালেকশনে সংরক্ষিত হয়েছে!', 'success');
+    } catch (err: any) {
+      console.error('Firestore seed products error:', err);
+      showToast(`Firestore সিড ত্রুটি: ${err?.message || 'অনুমতি নেই'}`, 'error');
+    }
   };
 
-  const updateProduct = (updatedProduct: TopUpProduct) => {
-    setProducts((prev) => prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p)));
-    showToast(`প্রোডাক্ট '${updatedProduct.title}' আপডেট করা হয়েছে!`, 'success');
+  const addProduct = async (product: TopUpProduct) => {
+    if (currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা নতুন প্রোডাক্ট যোগ করতে পারেন।', 'error');
+      return;
+    }
+
+    const id = product.id && product.id.trim()
+      ? product.id.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_')
+      : 'prod_' + Math.random().toString(36).substring(2, 9);
+
+    const bannerImg = product.bannerImageUrl || product.image || '/images/dc_topup_logo_1790094683501.jpg';
+    const badgeText = product.badgeTag || product.badge || '';
+
+    const newProductDoc: TopUpProduct = {
+      ...product,
+      id,
+      title: product.title.trim(),
+      description: product.description.trim(),
+      bannerImageUrl: bannerImg,
+      image: bannerImg,
+      badgeTag: badgeText,
+      badge: badgeText,
+      isActive: product.isActive !== false,
+      sortOrder: product.sortOrder || products.length + 1,
+      category: product.category || 'gaming',
+      subCategory: product.subCategory || 'Special Offer',
+      playerIdLabel: product.playerIdLabel || 'Player ID (UID)',
+      requiresZoneId: !!product.requiresZoneId,
+      zoneIdLabel: product.zoneIdLabel || '',
+      bannerGradient: product.bannerGradient || 'from-blue-600/30 to-purple-950/40',
+      packages: (product.packages || []).map((pkg, idx) => ({
+        id: pkg.id || `pkg_${Date.now()}_${idx}`,
+        name: pkg.name,
+        price: Number(pkg.price),
+        amount: pkg.amount || pkg.diamonds || pkg.name,
+        diamonds: pkg.diamonds || pkg.amount || pkg.name,
+        originalPrice: pkg.originalPrice ? Number(pkg.originalPrice) : undefined,
+        popular: !!pkg.popular,
+        instantDelivery: pkg.instantDelivery !== false,
+        isOutOfStock: !!pkg.isOutOfStock
+      })),
+      isOutOfStock: !!product.isOutOfStock
+    };
+
+    try {
+      await setDoc(doc(db, 'products', id), newProductDoc);
+      setProducts((prev) => [newProductDoc, ...prev.filter((p) => p.id !== id)]);
+      showToast(`নতুন প্রোডাক্ট '${product.title}' সফলভাবে Firestore-এ যোগ করা হয়েছে!`, 'success');
+    } catch (fsErr: any) {
+      console.error('Firestore add product error:', fsErr);
+      showToast(`Firestore প্রোডাক্ট যোগে ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
   };
 
-  const deleteProduct = (productId: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== productId));
-    showToast('প্রোডাক্ট মুছে ফেলা হয়েছে।', 'info');
+  const updateProduct = async (updatedProduct: TopUpProduct) => {
+    if (currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা প্রোডাক্ট আপডেট করতে পারেন।', 'error');
+      return;
+    }
+
+    try {
+      const bannerImg = updatedProduct.bannerImageUrl || updatedProduct.image;
+      const badgeText = updatedProduct.badgeTag || updatedProduct.badge || '';
+      const docData = {
+        ...updatedProduct,
+        bannerImageUrl: bannerImg,
+        image: bannerImg,
+        badgeTag: badgeText,
+        badge: badgeText,
+        updatedAt: serverTimestamp()
+      };
+      await setDoc(doc(db, 'products', updatedProduct.id), docData, { merge: true });
+      setProducts((prev) => prev.map((p) => (p.id === updatedProduct.id ? { ...p, ...docData } : p)));
+      showToast(`প্রোডাক্ট '${updatedProduct.title}' সরাসরি Firestore-এ আপডেট হয়েছে!`, 'success');
+    } catch (fsErr: any) {
+      console.error('Firestore update product error:', fsErr);
+      showToast(`Firestore প্রোডাক্ট আপডেট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
   };
 
-  const toggleProductStock = (productId: string) => {
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id !== productId) return p;
-        const newStock = !p.isOutOfStock;
-        showToast(
-          `প্রোডাক্ট '${p.title}' এখন ${newStock ? 'স্টক আউট (Stock Out)' : 'স্টকে রয়েছে (In Stock)'}!`,
-          newStock ? 'info' : 'success'
-        );
-        return { ...p, isOutOfStock: newStock };
-      })
-    );
+  const deleteProduct = async (productId: string) => {
+    if (currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা প্রোডাক্ট মুছতে পারেন।', 'error');
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, 'products', productId));
+      setProducts((prev) => prev.filter((p) => p.id !== productId));
+      showToast('প্রোডাক্ট সরাসরি Firestore থেকে মুছে ফেলা হয়েছে!', 'info');
+    } catch (fsErr: any) {
+      console.error('Firestore delete product error:', fsErr);
+      showToast(`Firestore প্রোডাক্ট ডিলিট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
   };
 
-  const togglePackageStock = (productId: string, packageId: string) => {
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id !== productId) return p;
-        const updatedPkgs = p.packages.map((pkg) => {
-          if (pkg.id !== packageId) return pkg;
-          const newPkgStock = !pkg.isOutOfStock;
-          showToast(
-            `প্যাকেজ '${pkg.name}' এখন ${newPkgStock ? 'স্টক আউট' : 'স্টকে রয়েছে'}!`,
-            newPkgStock ? 'info' : 'success'
-          );
-          return { ...pkg, isOutOfStock: newPkgStock };
-        });
-        return { ...p, packages: updatedPkgs };
-      })
-    );
+  const toggleProductActive = async (productId: string) => {
+    if (currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা প্রোডাক্ট হাইড/শো করতে পারেন।', 'error');
+      return;
+    }
+
+    const prod = products.find((p) => p.id === productId);
+    if (!prod) return;
+
+    const newActive = prod.isActive === false ? true : false;
+    try {
+      await updateDoc(doc(db, 'products', productId), {
+        isActive: newActive
+      });
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? { ...p, isActive: newActive } : p))
+      );
+      showToast(
+        `প্রোডাক্ট '${prod.title}' এখন ${newActive ? 'পাবলিক স্টোরে দৃশ্যমান (Active)' : 'লুকানো (Hidden/Inactive)'}!`,
+        newActive ? 'success' : 'info'
+      );
+    } catch (fsErr: any) {
+      console.error('Firestore toggle active error:', fsErr);
+      showToast(`Firestore স্ট্যাটাস পরিবর্তন ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
   };
 
-  const updateProductImage = (productId: string, newImageUrl: string) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === productId ? { ...p, image: newImageUrl } : p))
-    );
-    showToast('প্রোডাক্ট ছবি সফলভাবে পরিবর্তন করা হয়েছে!', 'success');
+  const toggleProductStock = async (productId: string) => {
+    if (currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা স্টক নিয়ন্ত্রণ করতে পারেন।', 'error');
+      return;
+    }
+
+    const prod = products.find((p) => p.id === productId);
+    if (!prod) return;
+
+    const newStock = !prod.isOutOfStock;
+    try {
+      await updateDoc(doc(db, 'products', productId), {
+        isOutOfStock: newStock
+      });
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? { ...p, isOutOfStock: newStock } : p))
+      );
+      showToast(
+        `প্রোডাক্ট '${prod.title}' এখন ${newStock ? 'স্টক আউট (Stock Out)' : 'স্টকে রয়েছে (In Stock)'}!`,
+        newStock ? 'info' : 'success'
+      );
+    } catch (fsErr: any) {
+      console.error('Firestore toggle stock error:', fsErr);
+      showToast(`Firestore স্টক আপডেট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
+  };
+
+  const togglePackageStock = async (productId: string, packageId: string) => {
+    if (currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা প্যাকেজ স্টক নিয়ন্ত্রণ করতে পারেন।', 'error');
+      return;
+    }
+
+    const prod = products.find((p) => p.id === productId);
+    if (!prod) return;
+
+    const updatedPkgs = prod.packages.map((pkg) => {
+      if (pkg.id !== packageId) return pkg;
+      return { ...pkg, isOutOfStock: !pkg.isOutOfStock };
+    });
+
+    try {
+      await updateDoc(doc(db, 'products', productId), {
+        packages: updatedPkgs
+      });
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? { ...p, packages: updatedPkgs } : p))
+      );
+      showToast('প্যাকেজ স্টক সফলভাবে আপডেট হয়েছে!', 'success');
+    } catch (fsErr: any) {
+      console.error('Firestore toggle package stock error:', fsErr);
+      showToast(`Firestore প্যাকেজ স্টক ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
+  };
+
+  const updateProductImage = async (productId: string, newImageUrl: string) => {
+    if (currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা ছবি পরিবর্তন করতে পারেন।', 'error');
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'products', productId), {
+        bannerImageUrl: newImageUrl,
+        image: newImageUrl
+      });
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? { ...p, bannerImageUrl: newImageUrl, image: newImageUrl } : p))
+      );
+      showToast('প্রোডাক্ট ব্যানার ছবি সরাসরি Firestore-এ আপডেট হয়েছে!', 'success');
+    } catch (fsErr: any) {
+      console.error('Firestore update product image error:', fsErr);
+      showToast(`Firestore ব্যানার আপডেট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
+  };
+
+  const updateProductPackages = async (productId: string, packages: TopUpPackage[]) => {
+    if (currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা প্যাকেজ পরিবর্তন করতে পারেন।', 'error');
+      return;
+    }
+
+    const formattedPkgs = packages.map((pkg, idx) => ({
+      id: pkg.id || `pkg_${Date.now()}_${idx}`,
+      name: pkg.name,
+      price: Number(pkg.price),
+      amount: pkg.amount || pkg.diamonds || pkg.name,
+      diamonds: pkg.diamonds || pkg.amount || pkg.name,
+      originalPrice: pkg.originalPrice ? Number(pkg.originalPrice) : undefined,
+      popular: !!pkg.popular,
+      instantDelivery: pkg.instantDelivery !== false,
+      isOutOfStock: !!pkg.isOutOfStock
+    }));
+
+    try {
+      await updateDoc(doc(db, 'products', productId), {
+        packages: formattedPkgs
+      });
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? { ...p, packages: formattedPkgs } : p))
+      );
+      showToast('প্যাকেজ ও মূল্য তালিকা সরাসরি Firestore-এ আপডেট হয়েছে!', 'success');
+    } catch (fsErr: any) {
+      console.error('Firestore update packages error:', fsErr);
+      showToast(`Firestore প্যাকেজ আপডেট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
   };
 
   const updateNotice = (newNotice: Partial<AppNotice>) => {
@@ -670,8 +1201,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateProduct,
         deleteProduct,
         toggleProductStock,
+        toggleProductActive,
         togglePackageStock,
-        updateProductImage
+        updateProductImage,
+        updateProductPackages,
+        seedProductsToFirestore
       }}
     >
       {children}

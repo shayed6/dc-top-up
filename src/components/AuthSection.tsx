@@ -38,21 +38,23 @@ export const AuthSection: React.FC<AuthSectionProps> = ({
   // Google Sign-in Handler
   const handleGoogleAuth = async () => {
     setStatusType('loading');
-    setStatusMsg('সাইন-ইন হচ্ছে...');
+    setStatusMsg('গুগল সাইন-ইন প্রসেস হচ্ছে...');
     setIsProcessing(true);
 
-    setTimeout(() => {
-      // Authenticate via Google
-      loginWithGoogle('সায়েদ আফ্রিদী', 'shayedafride24@gmail.com');
+    try {
+      await loginWithGoogle();
       setStatusType('success');
-      setStatusMsg('সফল! রিডাইরেক্ট হচ্ছে...');
-      setIsProcessing(false);
-
+      setStatusMsg('লগইন সফল! রিডাইরেক্ট হচ্ছে...');
       setTimeout(() => {
         if (onSuccess) onSuccess();
         else setActiveTab('deposit');
-      }, 700);
-    }, 800);
+      }, 500);
+    } catch (err: any) {
+      setStatusType('error');
+      setStatusMsg('গুগল সাইন-ইন ব্যর্থ হয়েছে, আবার চেষ্টা করুন।');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Email / Password Submit Handler

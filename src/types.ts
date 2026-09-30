@@ -22,6 +22,7 @@ export interface TopUpPackage {
   id: string;
   name: string; // e.g., "115 Diamonds" or "60 UC"
   amount: string; // "115 💎"
+  diamonds?: string; // alias for amount
   price: number; // in BDT ৳
   originalPrice?: number;
   popular?: boolean;
@@ -34,17 +35,20 @@ export type ProductCategory = 'gaming' | 'facebook' | 'tiktok' | 'games';
 export interface TopUpProduct {
   id: string;
   title: string;
+  description: string;
+  bannerImageUrl?: string;
+  image: string; // backward compatibility fallback
+  badgeTag?: string; // e.g. "Special Offer"
+  badge?: string; // alias
+  isActive: boolean;
+  sortOrder?: number;
   category: ProductCategory;
   subCategory?: string; // e.g. "Battle Royale", "MOBA", "FPS", "Steam", "Gift Card"
-  badge?: string;
-  description: string;
-  playerIdLabel: string; // e.g., "Player ID (UID)" or "Riot ID"
+  playerIdLabel?: string; // e.g., "Player ID (UID)" or "Riot ID"
   requiresZoneId?: boolean;
   zoneIdLabel?: string;
-  image: string;
-  bannerGradient: string;
+  bannerGradient?: string;
   packages: TopUpPackage[];
-  isActive: boolean;
   isOutOfStock?: boolean;
 }
 
