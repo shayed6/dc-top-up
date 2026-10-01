@@ -124,7 +124,7 @@ export const AdminDashboard: React.FC = () => {
   const totalCompletedOrders = orders.filter((o) => o.status === 'delivered').length;
 
   // Real-time verification of admin role from users/{uid} document
-  const isAdmin = currentUser.role === 'admin';
+  const isAdmin = currentUser?.role === 'admin';
 
   const handleCopyTrx = (trx: string) => {
     navigator.clipboard.writeText(trx);
@@ -191,10 +191,10 @@ export const AdminDashboard: React.FC = () => {
           <div className={`w-2.5 h-2.5 rounded-full ${isAdmin ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
           <div>
             <span className="text-slate-600 block text-[10px] uppercase font-bold tracking-wide">
-              {isAdmin ? 'এডমিন পারমিশন: সক্রিয় (role: admin)' : `অননুমোদিত (role: ${currentUser.role})`}
+              {isAdmin ? 'এডমিন পারমিশন: সক্রিয় (role: admin)' : currentUser ? `অননুমোদিত (role: ${currentUser.role})` : 'লগইন করা নেই'}
             </span>
             <span className="font-extrabold text-black text-xs font-mono">
-              UID: {currentUser.id.slice(0, 12)}...
+              UID: {currentUser ? `${currentUser.id.slice(0, 12)}...` : 'N/A'}
             </span>
           </div>
         </div>

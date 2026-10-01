@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { ShieldCheck, CheckCircle2, ArrowRight, RefreshCw, Smartphone, Mail } from 'lucide-react';
+import { RefreshCw, CheckCircle2 } from 'lucide-react';
 
 interface AuthSectionProps {
   initialMode?: 'login' | 'signup';
@@ -13,10 +13,9 @@ export const AuthSection: React.FC<AuthSectionProps> = ({
   onSuccess,
   isModal = false
 }) => {
-  const { loginWithGoogle, signupWithEmail, loginWithEmail, loginWithPhone, setActiveTab, showToast } = useApp();
+  const { loginWithGoogle, signupWithEmail, loginWithEmail, setActiveTab } = useApp();
 
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
-  const [authMethod, setAuthMethod] = useState<'google_email' | 'phone'>('google_email');
 
   // Email / Password Form State
   const [name, setName] = useState('');
@@ -24,40 +23,40 @@ export const AuthSection: React.FC<AuthSectionProps> = ({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // Phone OTP Form State
-  const [phoneNumber, setPhoneNumber] = useState('01712-345678');
-  const [otpStep, setOtpStep] = useState<'phone' | 'otp'>('phone');
-  const [otpDigits, setOtpDigits] = useState(['1', '2', '3', '4']);
-  const [timer, setTimer] = useState(30);
-
   // Status & Loading State
   const [statusMsg, setStatusMsg] = useState('');
   const [statusType, setStatusType] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Google Sign-in Handler
+  // Google Sign-in Handler (Real Firebase Auth)
   const handleGoogleAuth = async () => {
     setStatusType('loading');
     setStatusMsg('গুগল সাইন-ইন প্রসেস হচ্ছে...');
     setIsProcessing(true);
 
     try {
-      await loginWithGoogle();
-      setStatusType('success');
-      setStatusMsg('লগইন সফল! রিডাইরেক্ট হচ্ছে...');
-      setTimeout(() => {
-        if (onSuccess) onSuccess();
-        else setActiveTab('deposit');
-      }, 500);
+      const res = await loginWithGoogle();
+      if (res && res.success) {
+        setStatusType('success');
+        setStatusMsg('লগইন সফল! রিডাইরেক্ট হচ্ছে...');
+        setTimeout(() => {
+          if (onSuccess) onSuccess();
+          else setActiveTab('deposit');
+        }, 500);
+      } else {
+        setStatusType('error');
+        setStatusMsg(res?.error || 'গুগল সাইন-ইন সম্পন্ন হয়নি।');
+      }
     } catch (err: any) {
+      console.warn('handleGoogleAuth note:', err?.message || err);
       setStatusType('error');
-      setStatusMsg('গুগল সাইন-ইন ব্যর্থ হয়েছে, আবার চেষ্টা করুন।');
+      setStatusMsg('গুগল সাইন-ইন সম্পন্ন হয়নি। অনুগ্রহ করে নিচের Email ও Password ফর্ম ব্যবহার করুন।');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Email / Password Submit Handler
+  // Email / Password Submit Handler (Real Firebase Auth)
   const handleEmailFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatusType('idle');
@@ -72,21 +71,21 @@ export const AuthSection: React.FC<AuthSectionProps> = ({
 
       setIsProcessing(true);
       setStatusType('loading');
-      setStatusMsg('প্রসেস হচ্ছে...');
+      setStatusMsg('অ্যাকাউন্ট তৈরি হচ্ছে...');
 
       const res = await signupWithEmail(name, email, password);
       setIsProcessing(false);
 
       if (res.success) {
         setStatusType('success');
-        setStatusMsg('অ্যাকাউন্ট তৈরি হয়েছে! রিডাইরেক্ট হচ্ছে...');
+        setStatusMsg('অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে! রিডাইরেক্ট হচ্ছে...');
         setTimeout(() => {
           if (onSuccess) onSuccess();
           else setActiveTab('deposit');
         }, 800);
       } else {
         setStatusType('error');
-        setStatusMsg(res.error || 'অ্যাকাউন্ট তৈরি করা যায়নি, আবার চেষ্টা করুন');
+        setStatusMsg(res.error || 'অ্যাকাউন্ট তৈরি করা যায় নি, আবার চেষ্টা করুন');
       }
     } else {
       // Login mode
@@ -99,66 +98,15 @@ export const AuthSection: React.FC<AuthSectionProps> = ({
 
       if (res.success) {
         setStatusType('success');
-        setStatusMsg('সফল! রিডাইরেক্ট হচ্ছে...');
+        setStatusMsg('লগইন সফল! রিডাইরেক্ট হচ্ছে...');
         setTimeout(() => {
           if (onSuccess) onSuccess();
           else setActiveTab('deposit');
         }, 800);
       } else {
         setStatusType('error');
-        setStatusMsg(res.error || 'লগইন ব্যর্থ হয়েছে, আবার চেষ্টা করুন');
+        setStatusMsg(res.error || 'ভুল ইমেইল বা পাসওয়ার্ড');
       }
-    }
-  };
-
-  // Phone OTP Flow Handlers
-  const handleSendPhoneOtp = (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
-    if (cleanPhone.length < 11) {
-      setStatusType('error');
-      setStatusMsg('সঠিক ১১ ডিজিটের মোবাইল নম্বর দিন (01XXXXXXXXX)');
-      return;
-    }
-    setOtpStep('otp');
-    setTimer(30);
-    showToast(`ভেরিফিকেশন কোড পাঠানো হয়েছে: ${cleanPhone} (ডেমো কোড: 1234)`, 'info');
-  };
-
-  const handleVerifyPhoneOtp = () => {
-    const code = otpDigits.join('');
-    if (code.length < 4) {
-      setStatusType('error');
-      setStatusMsg('৪ ডিজিটের ওটিপি সম্পূর্ণ লিখুন');
-      return;
-    }
-
-    setIsProcessing(true);
-    setStatusType('loading');
-    setStatusMsg('ওটিপি যাচাই হচ্ছে...');
-
-    setTimeout(() => {
-      loginWithPhone(phoneNumber, name || undefined);
-      setIsProcessing(false);
-      setStatusType('success');
-      setStatusMsg('লগইন সম্পন্ন হয়েছে!');
-
-      setTimeout(() => {
-        if (onSuccess) onSuccess();
-        else setActiveTab('deposit');
-      }, 700);
-    }, 700);
-  };
-
-  const handleOtpChange = (index: number, val: string) => {
-    if (!/^\d*$/.test(val)) return;
-    const newDigits = [...otpDigits];
-    newDigits[index] = val.slice(-1);
-    setOtpDigits(newDigits);
-
-    if (val && index < 3) {
-      const nextInput = document.getElementById(`auth-otp-${index + 1}`);
-      nextInput?.focus();
     }
   };
 
@@ -188,7 +136,7 @@ export const AuthSection: React.FC<AuthSectionProps> = ({
                 </>
               ) : (
                 <>
-                  নতুন অ্যাকাউন্ট<br />
+                  নতুন একাউন্ট<br />
                   <span className="text-[#E0A500]">তৈরি করুন</span>
                 </>
               )}
@@ -197,8 +145,8 @@ export const AuthSection: React.FC<AuthSectionProps> = ({
             {/* Subtitle */}
             <p className="text-[#6B6F8C] font-inter text-[14.5px] sm:text-[15px] leading-[1.6] max-w-[34ch]">
               {mode === 'login'
-                ? 'আপনার ওয়ালেটে ব্যালেন্স রাখুন আর যেকোনো সময় প্রোডাক্ট পারচেজ করুন — নিরাপদ ও দ্রুত।'
-                : 'অ্যাকাউন্ট খুলে ওয়ালেটে ব্যালেন্স রাখুন আর যেকোনো সময় প্রোডাক্ট পারচেজ করুন।'}
+                ? 'আপনার ওয়ালেটে ব্যালেন্স রাখুন আর যেকোনো সময় প্রোডাক্ট পারচেজ করুন — নিরাপদ ও দ্রুত।'
+                : 'একাউন্ট খুলে ওয়ালেটে ব্যালেন্স রাখুন আর যেকোনো সময় প্রোডাক্ট পারচেজ করুন।'}
             </p>
           </div>
 
@@ -248,6 +196,7 @@ export const AuthSection: React.FC<AuthSectionProps> = ({
             <div className="flex items-center bg-[#F7F7FA] p-1 rounded-xl border border-[#14162E]/10 text-xs">
               <button
                 type="button"
+                id="auth-mode-login-tab"
                 onClick={() => {
                   setMode('login');
                   setStatusMsg('');
@@ -261,6 +210,7 @@ export const AuthSection: React.FC<AuthSectionProps> = ({
               </button>
               <button
                 type="button"
+                id="auth-mode-signup-tab"
                 onClick={() => {
                   setMode('signup');
                   setStatusMsg('');
@@ -277,231 +227,140 @@ export const AuthSection: React.FC<AuthSectionProps> = ({
 
           <p className="text-[#6B6F8C] font-inter text-[14px] mb-6">
             {mode === 'login'
-              ? 'Google অ্যাকাউন্ট দিয়ে লগইন করুন, নতুন হলে অটোমেটিক অ্যাকাউন্ট তৈরি হয়ে যাবে।'
-              : 'নাম, ইমেইল ও পাসওয়ার্ড দিয়ে অ্যাকাউন্ট খুলুন, অথবা Google দিয়ে সরাসরি সাইনআপ করুন।'}
+              ? 'Google একাউন্ট দিয়ে সরাসরি লগইন করুন অথবা আপনার ইমেইল ও পাসওয়ার্ড লিখুন।'
+              : 'নাম, ইমেইল ও পাসওয়ার্ড দিয়ে একাউন্ট তৈরি করুন অথবা Google দিয়ে সাইনআপ করুন।'}
           </p>
 
-          {/* Mode-Specific Forms */}
-          {authMethod === 'google_email' ? (
-            <div className="space-y-4">
-              {/* Google Button */}
-              <button
-                id="googleAuthBtn"
-                type="button"
-                disabled={isProcessing}
-                onClick={handleGoogleAuth}
-                className="w-full flex items-center justify-center gap-3 bg-[#14162E] hover:bg-[#202347] active:scale-[0.99] text-white rounded-[10px] py-3.5 px-4 font-inter font-semibold text-[14.5px] cursor-pointer transition-all shadow-sm hover:shadow-[0_10px_24px_-12px_rgba(224,165,0,0.35)] disabled:opacity-70"
-              >
-                <svg className="w-[18px] h-[18px]" viewBox="0 0 48 48">
-                  <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 6 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.4-.4-3.5z" />
-                  <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 6 29.5 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z" />
-                  <path fill="#4CAF50" d="M24 44c5.4 0 10.3-1.8 14-4.9l-6.5-5.5c-2 1.4-4.6 2.3-7.5 2.3-5.2 0-9.6-3.3-11.2-7.9l-6.5 5C9.6 39.6 16.3 44 24 44z" />
-                  <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.5 5.5C41.1 35.9 44 30.4 44 24c0-1.2-.1-2.4-.4-3.5z" />
-                </svg>
-                <span>{mode === 'login' ? 'Sign in with Google' : 'Sign up with Google'}</span>
-              </button>
+          <div className="space-y-4">
+            {/* Google Button */}
+            <button
+              id="googleAuthBtn"
+              type="button"
+              disabled={isProcessing}
+              onClick={handleGoogleAuth}
+              className="w-full flex items-center justify-center gap-3 bg-[#14162E] hover:bg-[#202347] active:scale-[0.99] text-white rounded-[10px] py-3.5 px-4 font-inter font-semibold text-[14.5px] cursor-pointer transition-all shadow-sm hover:shadow-[0_10px_24px_-12px_rgba(224,165,0,0.35)] disabled:opacity-70"
+            >
+              <svg className="w-[18px] h-[18px]" viewBox="0 0 48 48">
+                <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 6 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.4-.4-3.5z" />
+                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 6 29.5 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z" />
+                <path fill="#4CAF50" d="M24 44c5.4 0 10.3-1.8 14-4.9l-6.5-5.5c-2 1.4-4.6 2.3-7.5 2.3-5.2 0-9.6-3.3-11.2-7.9l-6.5 5C9.6 39.6 16.3 44 24 44z" />
+                <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.5 5.5C41.1 35.9 44 30.4 44 24c0-1.2-.1-2.4-.4-3.5z" />
+              </svg>
+              <span>{mode === 'login' ? 'Sign in with Google' : 'Sign up with Google'}</span>
+            </button>
 
-              {/* Divider */}
-              <div className="flex items-center gap-3 my-4 text-[#6B6F8C] text-[12.5px] font-inter">
-                <span className="flex-1 h-px bg-[#14162E]/10" />
-                <span>অথবা ইমেইল দিয়ে {mode === 'login' ? 'লগইন' : 'রেজিস্ট্রেশন'}</span>
-                <span className="flex-1 h-px bg-[#14162E]/10" />
-              </div>
+            {/* Divider */}
+            <div className="flex items-center gap-3 my-4 text-[#6B6F8C] text-[12.5px] font-inter">
+              <span className="flex-1 h-px bg-[#14162E]/10" />
+              <span>অথবা ইমেইল দিয়ে {mode === 'login' ? 'লগইন' : 'রেজিস্ট্রেশন'}</span>
+              <span className="flex-1 h-px bg-[#14162E]/10" />
+            </div>
 
-              {/* Email / Password Form */}
-              <form onSubmit={handleEmailFormSubmit} className="space-y-3.5">
-                {mode === 'signup' && (
-                  <div>
-                    <label className="block text-[12.5px] text-[#6B6F8C] font-inter mb-1.5 font-medium">
-                      পুরো নাম
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="আপনার নাম"
-                      className="w-full bg-white border border-[#14162E]/10 focus:border-[#E0A500] rounded-[10px] px-3.5 py-2.5 text-[#14162E] font-inter text-[14px] focus:outline-none transition-colors"
-                    />
-                  </div>
-                )}
-
+            {/* Email / Password Form */}
+            <form onSubmit={handleEmailFormSubmit} className="space-y-3.5">
+              {mode === 'signup' && (
                 <div>
                   <label className="block text-[12.5px] text-[#6B6F8C] font-inter mb-1.5 font-medium">
-                    ইমেইল
+                    পুরো নাম
                   </label>
                   <input
-                    type="email"
+                    id="auth-signup-name-input"
+                    type="text"
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="আপনার নাম"
                     className="w-full bg-white border border-[#14162E]/10 focus:border-[#E0A500] rounded-[10px] px-3.5 py-2.5 text-[#14162E] font-inter text-[14px] focus:outline-none transition-colors"
                   />
                 </div>
+              )}
 
+              <div>
+                <label className="block text-[12.5px] text-[#6B6F8C] font-inter mb-1.5 font-medium">
+                  ইমেইল
+                </label>
+                <input
+                  id="auth-email-input"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full bg-white border border-[#14162E]/10 focus:border-[#E0A500] rounded-[10px] px-3.5 py-2.5 text-[#14162E] font-inter text-[14px] focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[12.5px] text-[#6B6F8C] font-inter mb-1.5 font-medium">
+                  পাসওয়ার্ড
+                </label>
+                <input
+                  id="auth-password-input"
+                  type="password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="কমপক্ষে ৬ ক্যারেক্টার"
+                  className="w-full bg-white border border-[#14162E]/10 focus:border-[#E0A500] rounded-[10px] px-3.5 py-2.5 text-[#14162E] font-inter text-[14px] focus:outline-none transition-colors"
+                />
+              </div>
+
+              {mode === 'signup' && (
                 <div>
                   <label className="block text-[12.5px] text-[#6B6F8C] font-inter mb-1.5 font-medium">
-                    পাসওয়ার্ড
+                    পাসওয়ার্ড আবার লিখুন
                   </label>
                   <input
+                    id="auth-confirm-password-input"
                     type="password"
                     required
                     minLength={6}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="কমপক্ষে ৬ ক্যারেক্টার"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="পাসওয়ার্ড কনফার্ম করুন"
                     className="w-full bg-white border border-[#14162E]/10 focus:border-[#E0A500] rounded-[10px] px-3.5 py-2.5 text-[#14162E] font-inter text-[14px] focus:outline-none transition-colors"
                   />
                 </div>
-
-                {mode === 'signup' && (
-                  <div>
-                    <label className="block text-[12.5px] text-[#6B6F8C] font-inter mb-1.5 font-medium">
-                      পাসওয়ার্ড আবার লিখুন
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      minLength={6}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="পাসওয়ার্ড কনফার্ম করুন"
-                      className="w-full bg-white border border-[#14162E]/10 focus:border-[#E0A500] rounded-[10px] px-3.5 py-2.5 text-[#14162E] font-inter text-[14px] focus:outline-none transition-colors"
-                    />
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isProcessing}
-                  className="w-full py-3 px-5 rounded-[10px] bg-[#E0A500] hover:bg-[#B98A00] active:scale-[0.99] text-white font-inter font-semibold text-[14px] cursor-pointer transition-all shadow-[0_10px_24px_-12px_rgba(224,165,0,0.35)] mt-2 disabled:opacity-70 flex items-center justify-center gap-2"
-                >
-                  {isProcessing ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin text-white" />
-                      <span>প্রসেস হচ্ছে...</span>
-                    </>
-                  ) : (
-                    <span>{mode === 'login' ? 'Login করুন' : 'Create Account'}</span>
-                  )}
-                </button>
-              </form>
-            </div>
-          ) : (
-            /* Phone OTP alternative */
-            <div className="space-y-4">
-              {otpStep === 'phone' ? (
-                <form onSubmit={handleSendPhoneOtp} className="space-y-4">
-                  <div>
-                    <label className="block text-[12.5px] text-[#6B6F8C] font-inter mb-1.5 font-medium">
-                      বাংলাদেশি মোবাইল নম্বর
-                    </label>
-                    <div className="relative flex items-center">
-                      <span className="absolute left-3 font-mono font-bold text-[#14162E] text-xs">
-                        🇧🇩 +880
-                      </span>
-                      <input
-                        type="tel"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        placeholder="017XXXXXXXX"
-                        className="w-full bg-white border border-[#14162E]/10 focus:border-[#E0A500] rounded-[10px] pl-20 pr-4 py-2.5 text-[#14162E] font-mono text-sm focus:outline-none"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full py-3 rounded-[10px] bg-[#14162E] hover:bg-[#202347] text-white font-inter font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer transition-all"
-                  >
-                    <span>ওটিপি কোড পাঠান</span>
-                    <ArrowRight className="w-4 h-4 text-white" />
-                  </button>
-                </form>
-              ) : (
-                <div className="space-y-4 text-center">
-                  <div className="p-3 rounded-xl bg-[#F7F7FA] border border-[#14162E]/10">
-                    <p className="text-xs text-[#6B6F8C]">কোড পাঠানো হয়েছে:</p>
-                    <p className="font-mono font-bold text-[#14162E] text-sm">{phoneNumber}</p>
-                    <button
-                      type="button"
-                      onClick={() => setOtpStep('phone')}
-                      className="text-xs text-[#E0A500] font-semibold hover:underline mt-1"
-                    >
-                      নম্বর পরিবর্তন
-                    </button>
-                  </div>
-
-                  <div className="flex justify-center gap-2 my-2">
-                    {otpDigits.map((d, i) => (
-                      <input
-                        key={i}
-                        id={`auth-otp-${i}`}
-                        type="text"
-                        maxLength={1}
-                        value={d}
-                        onChange={(e) => handleOtpChange(i, e.target.value)}
-                        className="w-11 h-11 text-center font-mono text-lg font-bold border border-[#14162E]/10 rounded-xl focus:border-[#E0A500] focus:outline-none"
-                      />
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleVerifyPhoneOtp}
-                    disabled={isProcessing}
-                    className="w-full py-3 rounded-[10px] bg-[#E0A500] text-white font-inter font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    {isProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                    <span>যাচাই করে সম্পন্ন করুন</span>
-                  </button>
-                </div>
               )}
-            </div>
-          )}
+
+              <button
+                id="auth-submit-btn"
+                type="submit"
+                disabled={isProcessing}
+                className="w-full py-3 px-5 rounded-[10px] bg-[#E0A500] hover:bg-[#B98A00] active:scale-[0.99] text-white font-inter font-semibold text-[14px] cursor-pointer transition-all shadow-[0_10px_24px_-12px_rgba(224,165,0,0.35)] mt-2 disabled:opacity-70 flex items-center justify-center gap-2"
+              >
+                {isProcessing ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                    <span>প্রসেস হচ্ছে...</span>
+                  </>
+                ) : (
+                  <span>{mode === 'login' ? 'Login করুন' : 'Create Account'}</span>
+                )}
+              </button>
+            </form>
+          </div>
 
           {/* Status Message Line */}
           {statusMsg && (
             <div
-              className={`mt-3 text-[13px] min-h-[18px] transition-all ${
+              id="auth-status-message"
+              className={`mt-3.5 p-3 rounded-xl text-[13px] leading-relaxed transition-all ${
                 statusType === 'error'
-                  ? 'text-[#D3453A] font-medium'
+                  ? 'bg-rose-50 border border-rose-200 text-[#D3453A] font-semibold'
                   : statusType === 'success'
-                  ? 'text-[#1F9D6B] font-bold'
-                  : 'text-[#6B6F8C]'
+                  ? 'bg-emerald-50 border border-emerald-200 text-[#1F9D6B] font-bold'
+                  : 'bg-slate-50 border border-slate-200 text-[#6B6F8C]'
               }`}
             >
               {statusMsg}
             </div>
           )}
 
-          {/* Alternate Method Switcher (Email vs Phone) */}
-          <div className="mt-4 pt-4 border-t border-[#14162E]/10 flex items-center justify-between text-xs text-[#6B6F8C]">
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMethod(authMethod === 'google_email' ? 'phone' : 'google_email');
-                setStatusMsg('');
-                setStatusType('idle');
-              }}
-              className="flex items-center gap-1.5 font-medium hover:text-[#14162E] cursor-pointer"
-            >
-              {authMethod === 'google_email' ? (
-                <>
-                  <Smartphone className="w-3.5 h-3.5 text-[#E0A500]" />
-                  <span>মোবাইল নম্বর ওটিপি লগইন</span>
-                </>
-              ) : (
-                <>
-                  <Mail className="w-3.5 h-3.5 text-[#E0A500]" />
-                  <span>Google / ইমেইল লগইন</span>
-                </>
-              )}
-            </button>
-
-            {/* Bottom Footer Switcher */}
+          {/* Bottom Footer Switcher */}
+          <div className="mt-5 pt-4 border-t border-[#14162E]/10 flex items-center justify-between text-xs text-[#6B6F8C]">
+            <span className="text-[11px] text-slate-500">Firebase Auth দ্বারা সুরক্ষিত</span>
             <div className="text-right">
               {mode === 'login' ? (
                 <span>
@@ -537,7 +396,7 @@ export const AuthSection: React.FC<AuthSectionProps> = ({
             </div>
           </div>
 
-          <div className="mt-5 text-[12px] text-[#6B6F8C] leading-[1.5] text-center border-t border-[#14162E]/5 pt-3">
+          <div className="mt-4 text-[12px] text-[#6B6F8C] leading-[1.5] text-center border-t border-[#14162E]/5 pt-3">
             লগইন বা সাইন-আপ করার মাধ্যমে আপনি DC Top Up-এর ব্যবহারের শর্তাবলি ও নিয়মাবলি মেনে নিচ্ছেন।
           </div>
         </div>

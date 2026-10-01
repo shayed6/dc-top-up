@@ -25,7 +25,7 @@ export const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
   const [copiedUid, setCopiedUid] = useState(false);
 
   // Filter user orders
-  const myOrders = orders.filter((o) => o.userId === currentUser.id);
+  const myOrders = currentUser ? orders.filter((o) => o.userId === currentUser.id) : [];
 
   // Determine current active order
   const activeOrder = propOrder || 

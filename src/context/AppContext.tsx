@@ -31,7 +31,8 @@ interface ToastInfo {
 }
 
 interface AppContextType {
-  currentUser: User;
+  currentUser: User | null;
+  isAuthReady: boolean;
   isAdminMode: boolean;
   setIsAdminMode: (admin: boolean) => void;
   activeTab: ActiveTab;
@@ -46,7 +47,7 @@ interface AppContextType {
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   
   // Profile
-  updateUserProfile: (updates: Partial<User>) => void;
+  updateUserProfile: (updates: Partial<User>) => Promise<void>;
 
   // Notice & Announcement
   notice: AppNotice;
@@ -59,11 +60,11 @@ interface AppContextType {
   deleteBanner: (bannerId: string) => void;
 
   // Auth
-  loginWithGoogle: (name?: string, email?: string, photoURL?: string) => Promise<void> | void;
+  loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   signupWithEmail: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   loginWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   loginWithPhone: (phone: string, name?: string) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   
   // Deposit flow
   submitDeposit: (method: PaymentMethodType, amount: number, senderPhone: string, trxId: string) => Promise<boolean>;
@@ -71,7 +72,7 @@ interface AppContextType {
   // Purchase flow
   selectedProduct: TopUpProduct | null;
   setSelectedProduct: (p: TopUpProduct | null) => void;
-  purchaseProduct: (productId: string, packageId: string, playerId: string, zoneId?: string) => { success: boolean; error?: string; order?: Order };
+  purchaseProduct: (productId: string, packageId: string, playerId: string, zoneId?: string) => Promise<{ success: boolean; error?: string; order?: Order }>;
   
   // Admin actions (direct Firestore client SDK operations)
   approveDeposit: (depositId: string) => Promise<void>;
@@ -91,10 +92,9 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User>(() => {
-    const saved = localStorage.getItem('dc_user');
-    return saved ? JSON.parse(saved) : INITIAL_USER;
-  });
+  // CRITICAL: Pure Firebase Auth state only — no local mock fallback!
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState<boolean>(false);
 
   const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
@@ -102,7 +102,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [products, setProducts] = useState<TopUpProduct[]>(() => {
     const ver = localStorage.getItem('dc_catalog_ver');
-    if (ver === 'v7_reliable_images') {
+    if (ver === 'v8_mystery_box_rewards') {
       const saved = localStorage.getItem('dc_products');
       if (saved) {
         try {
@@ -113,36 +113,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
     // Refresh to the exact items with matching images requested by the user
-    localStorage.setItem('dc_catalog_ver', 'v7_reliable_images');
+    localStorage.setItem('dc_catalog_ver', 'v8_mystery_box_rewards');
     localStorage.setItem('dc_products', JSON.stringify(INITIAL_PRODUCTS));
     return INITIAL_PRODUCTS;
   });
 
-  const [deposits, setDeposits] = useState<DepositRequest[]>(() => {
-    const saved = localStorage.getItem('dc_deposits');
-    return saved ? JSON.parse(saved) : INITIAL_DEPOSITS;
-  });
-
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const ver = localStorage.getItem('dc_orders_ver');
-    if (ver === 'v2_live_tracking') {
-      const saved = localStorage.getItem('dc_orders');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          // fallback
-        }
-      }
-    }
-    localStorage.setItem('dc_orders_ver', 'v2_live_tracking');
-    localStorage.setItem('dc_orders', JSON.stringify(INITIAL_ORDERS));
-    return INITIAL_ORDERS;
-  });
-
-  const [activeTrackingOrderId, setActiveTrackingOrderId] = useState<string | null>(() => {
-    return 'ORD-5520';
-  });
+  const [deposits, setDeposits] = useState<DepositRequest[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [activeTrackingOrderId, setActiveTrackingOrderId] = useState<string | null>(null);
 
   const [notice, setNotice] = useState<AppNotice>(() => {
     const saved = localStorage.getItem('dc_notice');
@@ -151,7 +129,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [banners, setBanners] = useState<HomeBanner[]>(() => {
     const ver = localStorage.getItem('dc_banners_ver');
-    if (ver === 'v7_reliable_images') {
+    if (ver === 'v8_support_phone') {
       const saved = localStorage.getItem('dc_banners');
       if (saved) {
         try {
@@ -161,29 +139,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
     }
-    localStorage.setItem('dc_banners_ver', 'v7_reliable_images');
+    localStorage.setItem('dc_banners_ver', 'v8_support_phone');
     localStorage.setItem('dc_banners', JSON.stringify(INITIAL_BANNERS));
     return INITIAL_BANNERS;
   });
 
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
 
-  // Sync with localStorage
-  useEffect(() => {
-    localStorage.setItem('dc_user', JSON.stringify(currentUser));
-  }, [currentUser]);
-
   useEffect(() => {
     localStorage.setItem('dc_products', JSON.stringify(products));
   }, [products]);
-
-  useEffect(() => {
-    localStorage.setItem('dc_deposits', JSON.stringify(deposits));
-  }, [deposits]);
-
-  useEffect(() => {
-    localStorage.setItem('dc_orders', JSON.stringify(orders));
-  }, [orders]);
 
   useEffect(() => {
     localStorage.setItem('dc_notice', JSON.stringify(notice));
@@ -202,7 +167,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Listen to Firebase Auth State Changes & live user document
+  // Sole source of truth for logged-in/logged-out state!
   useEffect(() => {
+    // Clear any previous mock user cache from localStorage
+    localStorage.removeItem('dc_user');
+
     let userUnsub: (() => void) | null = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -211,48 +180,86 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userUnsub = null;
       }
 
-      if (firebaseUser) {
-        const isAdminEmail = firebaseUser.email === 'shayedafride24@gmail.com' || firebaseUser.email === 'admin@dctopup.com';
-        const userRef = doc(db, 'users', firebaseUser.uid);
+      if (!firebaseUser) {
+        setCurrentUser(null);
+        setIsAuthReady(true);
+        return;
+      }
 
-        try {
-          const snap = await getDoc(userRef);
-          if (!snap.exists()) {
-            const initialDoc = {
-              id: firebaseUser.uid,
-              uid: firebaseUser.uid,
-              name: firebaseUser.displayName || 'সায়েদ আফ্রিদী',
-              email: firebaseUser.email || '',
-              phone: firebaseUser.phoneNumber || '01845-735906',
-              walletBalance: 420.00,
-              role: isAdminEmail ? 'admin' : 'customer',
-              joinedAt: new Date().toISOString().split('T')[0],
-              createdAt: serverTimestamp()
-            };
-            await setDoc(userRef, initialDoc, { merge: true });
-          }
-        } catch (e) {
-          console.warn('Initial user doc check note:', e);
+      const isAdminEmail =
+        firebaseUser.email === 'shayedafride24@gmail.com' ||
+        firebaseUser.email === 'admin@dctopup.com';
+      const userRef = doc(db, 'users', firebaseUser.uid);
+
+      try {
+        const snap = await getDoc(userRef);
+        if (!snap.exists()) {
+          const initialDoc: User = {
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'গ্রাহক'),
+            email: firebaseUser.email || '',
+            phone: firebaseUser.phoneNumber || '',
+            walletBalance: 0.00,
+            role: isAdminEmail ? 'admin' : 'customer',
+            status: 'active',
+            joinedAt: new Date().toISOString().split('T')[0]
+          };
+          await setDoc(userRef, {
+            ...initialDoc,
+            createdAt: serverTimestamp()
+          }, { merge: true });
+          setCurrentUser(initialDoc);
+        } else {
+          const data = snap.data();
+          setCurrentUser({
+            id: firebaseUser.uid,
+            name: data.name || firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'গ্রাহক'),
+            email: data.email || firebaseUser.email || '',
+            phone: data.phone || firebaseUser.phoneNumber || '',
+            walletBalance: typeof data.walletBalance === 'number' ? data.walletBalance : 0.00,
+            role: data.role || (isAdminEmail ? 'admin' : 'customer'),
+            status: data.status || 'active',
+            joinedAt: data.joinedAt || new Date().toISOString().split('T')[0],
+            photoURL: firebaseUser.photoURL || data.photoURL || '',
+            savedGameUid: data.savedGameUid || ''
+          });
         }
-
-        // Real-time live listener for current user document
-        userUnsub = onSnapshot(userRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            setCurrentUser((prev) => ({
-              ...prev,
-              id: firebaseUser.uid,
-              name: data.name || firebaseUser.displayName || prev.name,
-              email: data.email || firebaseUser.email || prev.email,
-              phone: data.phone || firebaseUser.phoneNumber || prev.phone,
-              walletBalance: typeof data.walletBalance === 'number' ? data.walletBalance : prev.walletBalance,
-              role: data.role || (isAdminEmail ? 'admin' : prev.role)
-            }));
-          }
-        }, (err) => {
-          console.warn('User snapshot subscription note:', err);
+      } catch (e) {
+        console.warn('Initial user doc check note:', e);
+        setCurrentUser({
+          id: firebaseUser.uid,
+          name: firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'গ্রাহক'),
+          email: firebaseUser.email || '',
+          phone: firebaseUser.phoneNumber || '',
+          walletBalance: 0.00,
+          role: isAdminEmail ? 'admin' : 'customer',
+          status: 'active',
+          joinedAt: new Date().toISOString().split('T')[0]
         });
       }
+
+      // Real-time live listener for current user document
+      userUnsub = onSnapshot(userRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setCurrentUser((prev) => ({
+            id: firebaseUser.uid,
+            name: data.name || firebaseUser.displayName || prev?.name || 'গ্রাহক',
+            email: data.email || firebaseUser.email || prev?.email || '',
+            phone: data.phone || firebaseUser.phoneNumber || prev?.phone || '',
+            walletBalance: typeof data.walletBalance === 'number' ? data.walletBalance : (prev?.walletBalance ?? 0.00),
+            role: data.role || (isAdminEmail ? 'admin' : (prev?.role || 'customer')),
+            status: data.status || 'active',
+            joinedAt: data.joinedAt || prev?.joinedAt || new Date().toISOString().split('T')[0],
+            photoURL: firebaseUser.photoURL || data.photoURL || prev?.photoURL || '',
+            savedGameUid: data.savedGameUid || prev?.savedGameUid || ''
+          }));
+        }
+      }, (err) => {
+        console.warn('User snapshot subscription note:', err);
+      });
+
+      setIsAuthReady(true);
     });
 
     return () => {
@@ -266,18 +273,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const depositsColl = collection(db, 'deposits');
       const unsub = onSnapshot(depositsColl, (snapshot) => {
-        if (!snapshot.empty) {
-          const firestoreDeposits: DepositRequest[] = [];
-          snapshot.forEach((d) => {
-            firestoreDeposits.push({ ...(d.data() as DepositRequest), id: d.id });
-          });
-          setDeposits((prev) => {
-            const map = new Map<string, DepositRequest>();
-            prev.forEach((item) => map.set(item.id, item));
-            firestoreDeposits.forEach((item) => map.set(item.id, item));
-            return Array.from(map.values());
-          });
-        }
+        const firestoreDeposits: DepositRequest[] = [];
+        snapshot.forEach((d) => {
+          firestoreDeposits.push({ ...(d.data() as DepositRequest), id: d.id });
+        });
+        setDeposits(firestoreDeposits);
       }, (err) => {
         console.warn('Firestore deposits live listener note:', err);
       });
@@ -292,18 +292,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const ordersColl = collection(db, 'orders');
       const unsub = onSnapshot(ordersColl, (snapshot) => {
-        if (!snapshot.empty) {
-          const firestoreOrders: Order[] = [];
-          snapshot.forEach((o) => {
-            firestoreOrders.push({ ...(o.data() as Order), id: o.id });
-          });
-          setOrders((prev) => {
-            const map = new Map<string, Order>();
-            prev.forEach((item) => map.set(item.id, item));
-            firestoreOrders.forEach((item) => map.set(item.id, item));
-            return Array.from(map.values());
-          });
-        }
+        const firestoreOrders: Order[] = [];
+        snapshot.forEach((o) => {
+          firestoreOrders.push({ ...(o.data() as Order), id: o.id });
+        });
+        setOrders(firestoreOrders);
       }, (err) => {
         console.warn('Firestore orders live listener note:', err);
       });
@@ -312,7 +305,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.warn('Firestore orders subscription error:', e);
     }
   }, []);
-
   // Real-time Firestore sync for products collection (read by public store & admin)
   useEffect(() => {
     try {
@@ -369,54 +361,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  const loginWithGoogle = async (name?: string, email?: string, photoURL?: string) => {
+  const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const u = result.user;
-      const loggedUser: User = {
-        id: u.uid,
-        name: u.displayName || name || 'গুগল গেমার',
-        email: u.email || email || '',
-        photoURL: u.photoURL || photoURL || '',
-        phone: u.phoneNumber || currentUser.phone || '01845-735906',
-        walletBalance: currentUser.walletBalance,
-        role: 'customer',
-        status: 'active',
-        joinedAt: new Date().toISOString().split('T')[0],
-        savedGameUid: currentUser.savedGameUid
-      };
+      const isAdminEmail = u.email === 'shayedafride24@gmail.com' || u.email === 'admin@dctopup.com';
 
-      try {
-        await setDoc(doc(db, 'users', u.uid), {
-          ...loggedUser,
-          lastLoginAt: serverTimestamp()
+      const userRef = doc(db, 'users', u.uid);
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) {
+        const initialDoc: User = {
+          id: u.uid,
+          name: u.displayName || 'গুগল গেমার',
+          email: u.email || '',
+          photoURL: u.photoURL || '',
+          phone: u.phoneNumber || '',
+          walletBalance: 0.00,
+          role: isAdminEmail ? 'admin' : 'customer',
+          status: 'active',
+          joinedAt: new Date().toISOString().split('T')[0]
+        };
+        await setDoc(userRef, {
+          ...initialDoc,
+          createdAt: serverTimestamp()
         }, { merge: true });
-      } catch (fsErr) {
-        // ignore offline
+      } else {
+        await setDoc(userRef, {
+          lastLoginAt: serverTimestamp(),
+          photoURL: u.photoURL || snap.data()?.photoURL || ''
+        }, { merge: true });
       }
 
-      setCurrentUser(loggedUser);
-      showToast(`স্বাগতম, ${loggedUser.name}! Google অ্যাকাউন্ট দিয়ে লগইন সফল হয়েছে।`, 'success');
+      showToast(`স্বাগতম, ${u.displayName || 'ইউজার'}! Google অ্যাকাউন্ট দিয়ে লগইন সফল হয়েছে।`, 'success');
+      return { success: true };
     } catch (popupErr: any) {
-      console.warn('Google popup note (using fallback session):', popupErr);
-      const googleUserEmail = email || 'shayedafride24@gmail.com';
-      const googleUserName = name || 'সায়েদ আফ্রিদী';
-      const googlePhoto = photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80';
-
-      const user: User = {
-        id: 'usr_g_' + Math.random().toString(36).substring(2, 9),
-        name: googleUserName,
-        email: googleUserEmail,
-        photoURL: googlePhoto,
-        phone: '01845-735906',
-        walletBalance: 420.00,
-        role: 'customer',
-        status: 'active',
-        joinedAt: new Date().toISOString().split('T')[0],
-        savedGameUid: '2847591028'
-      };
-      setCurrentUser(user);
-      showToast(`স্বাগতম, ${googleUserName}! লগইন সফল হয়েছে।`, 'success');
+      console.warn('Google popup sign-in note:', popupErr?.code || popupErr);
+      let msg = 'Google সাইন-ইন সম্পন্ন করা সম্ভব হয়নি। আবার চেষ্টা করুন।';
+      if (popupErr?.code === 'auth/popup-closed-by-user') {
+        msg = 'গুগল সাইন-ইন উইন্ডো বন্ধ করা হয়েছে।';
+      } else if (popupErr?.code === 'auth/cancelled-popup-request') {
+        msg = 'আগের সাইন-ইন রিকোয়েস্ট বাতিল হয়েছে।';
+      } else if (popupErr?.code === 'auth/unauthorized-domain') {
+        msg = 'এই ডোমেইনটি Firebase Console-এ অথোরাইজড নয়। অনুগ্রহ করে সরাসরি নিচের Email ও Password দিয়ে সাইন-আপ বা লগইন করুন।';
+      }
+      showToast(msg, 'error');
+      return { success: false, error: msg };
     }
   };
 
@@ -426,124 +415,132 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!password || password.length < 6) return { success: false, error: 'পাসওয়ার্ড খুব দুর্বল, কমপক্ষে ৬ ক্যারেক্টার দিন।' };
 
     const cleanEmail = email.toLowerCase().trim();
-    let firebaseUid = '';
 
     try {
+      // 1. Call Firebase Auth createUserWithEmailAndPassword
       const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
-      firebaseUid = userCred.user.uid;
-      if (userCred.user) {
-        await updateProfile(userCred.user, { displayName: name.trim() });
-      }
-    } catch (authErr: any) {
-      console.warn('Firebase createUser note:', authErr);
-      if (authErr?.code === 'auth/email-already-in-use') {
-        return { success: false, error: 'এই ইমেইল দিয়ে আগে থেকেই অ্যাকাউন্ট তৈরি করা আছে।' };
-      }
-    }
+      const firebaseUser = userCred.user;
 
-    try {
-      const newUser: User = {
-        id: firebaseUid || 'usr_em_' + Math.random().toString(36).substring(2, 9),
+      if (name.trim()) {
+        try {
+          await updateProfile(firebaseUser, { displayName: name.trim() });
+        } catch (pErr) {
+          console.warn('Update profile note:', pErr);
+        }
+      }
+
+      // 2. ONLY create Firestore users/{uid} document AFTER createUserWithEmailAndPassword succeeds!
+      const isAdminEmail = cleanEmail === 'shayedafride24@gmail.com' || cleanEmail === 'admin@dctopup.com';
+      const userDocData: User = {
+        id: firebaseUser.uid,
         name: name.trim(),
         email: cleanEmail,
-        phone: '017' + Math.floor(10000000 + Math.random() * 90000000),
-        walletBalance: 150.00, // Welcome signup bonus
-        role: 'customer',
+        phone: '',
+        walletBalance: 0.00,
+        role: isAdminEmail ? 'admin' : 'customer',
         status: 'active',
-        joinedAt: new Date().toISOString().split('T')[0],
-        savedGameUid: ''
+        joinedAt: new Date().toISOString().split('T')[0]
       };
 
-      try {
-        await setDoc(doc(db, 'users', newUser.id), {
-          ...newUser,
-          createdAt: serverTimestamp()
-        }, { merge: true });
-      } catch (fsErr) {
-        // ignore offline
-      }
+      await setDoc(doc(db, 'users', firebaseUser.uid), {
+        ...userDocData,
+        createdAt: serverTimestamp()
+      }, { merge: true });
 
-      setCurrentUser(newUser);
-      showToast(`অভিনন্দন ${name}! আপনার অ্যাকাউন্ট তৈরি হয়েছে এবং লগইন সম্পন্ন হয়েছে।`, 'success');
+      showToast(`অভিনন্দন ${name.trim()}! আপনার অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে।`, 'success');
       return { success: true };
-    } catch {
-      return { success: false, error: 'অ্যাকাউন্ট তৈরি করা যায়নি, আবার চেষ্টা করুন।' };
+    } catch (authErr: any) {
+      console.warn('Firebase createUser note:', authErr?.code || authErr?.message);
+      let errorMsg = 'অ্যাকাউন্ট তৈরি করা যায়নি, আবার চেষ্টা করুন।';
+      const code = authErr?.code || '';
+      if (code === 'auth/email-already-in-use') {
+        errorMsg = 'এই ইমেইল দিয়ে আগে থেকেই অ্যাকাউন্ট তৈরি করা আছে। লগইন করুন।';
+      } else if (code === 'auth/weak-password') {
+        errorMsg = 'পাসওয়ার্ড খুব দুর্বল, কমপক্ষে ৬ ক্যারেক্টার দিন।';
+      } else if (code === 'auth/invalid-email') {
+        errorMsg = 'অবৈধ ইমেইল ঠিকানা।';
+      }
+      return { success: false, error: errorMsg };
     }
   };
 
   const loginWithEmail = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    if (!email.trim() || !password) return { success: false, error: 'ইমেইল এবং পাসওয়ার্ড পূরণ করুন।' };
-
-    const cleanEmail = email.toLowerCase().trim();
-    let firebaseUid = '';
-
-    try {
-      const userCred = await signInWithEmailAndPassword(auth, cleanEmail, password);
-      firebaseUid = userCred.user.uid;
-    } catch (authErr: any) {
-      console.warn('Firebase signIn note:', authErr);
+    if (!email.trim() || !password) {
+      return { success: false, error: 'ইমেইল এবং পাসওয়ার্ড পূরণ করুন।' };
     }
 
-    try {
-      const user: User = {
-        id: firebaseUid || 'usr_' + Math.random().toString(36).substring(2, 9),
-        name: cleanEmail.split('@')[0],
-        email: cleanEmail,
-        phone: '01712-345678',
-        walletBalance: currentUser.walletBalance || 200.00,
-        role: 'customer',
-        status: 'active',
-        joinedAt: new Date().toISOString().split('T')[0],
-      };
+    const cleanEmail = email.toLowerCase().trim();
 
-      setCurrentUser(user);
-      showToast(`স্বাগতম, ${user.name}! লগইন সফল হয়েছে।`, 'success');
+    try {
+      // 1. Call real Firebase Auth signInWithEmailAndPassword
+      const userCred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      const displayName = userCred.user.displayName || cleanEmail.split('@')[0];
+      showToast(`স্বাগতম, ${displayName}! লগইন সফল হয়েছে।`, 'success');
       return { success: true };
-    } catch {
-      return { success: false, error: 'লগইন ব্যর্থ হয়েছে, আবার চেষ্টা করুন।' };
+    } catch (authErr: any) {
+      console.warn('Firebase signIn note:', authErr?.code || authErr?.message);
+      let errorMsg = 'ভুল ইমেইল বা পাসওয়ার্ড। আবার চেষ্টা করুন।';
+      const code = authErr?.code || '';
+      if (code === 'auth/user-not-found') {
+        errorMsg = 'কোনো অ্যাকাউন্ট পাওয়া যায়নি। অনুগ্রহ করে সাইন-আপ করুন।';
+      } else if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+        errorMsg = 'ভুল ইমেইল বা পাসওয়ার্ড। সঠিক তথ্য দিন।';
+      } else if (code === 'auth/invalid-email') {
+        errorMsg = 'ইমেইল ঠিকানাটি সঠিক নয়।';
+      } else if (code === 'auth/user-disabled') {
+        errorMsg = 'এই অ্যাকাউন্টটি নিষ্ক্রিয় করা হয়েছে।';
+      } else if (code === 'auth/too-many-requests') {
+        errorMsg = 'অতিরিক্ত ব্যর্থ চেষ্টার কারণে সাময়িকভাবে ব্লক করা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।';
+      }
+      // CRITICAL: Do NOT set any user state or grant access on error!
+      return { success: false, error: errorMsg };
     }
   };
 
   const loginWithPhone = (phone: string, name?: string) => {
-    const user: User = {
-      id: 'usr_' + phone.replace(/[^0-9]/g, '').slice(-6),
-      name: name || 'গেমার ' + phone.slice(-4),
-      phone,
-      email: `${phone.replace(/[^0-9]/g, '').slice(-6)}@gamer.bd`,
-      walletBalance: 250.00,
-      role: 'customer',
-      status: 'active',
-      joinedAt: new Date().toISOString().split('T')[0],
-      savedGameUid: ''
-    };
-    setCurrentUser(user);
-    showToast(`স্বাগতম, ${user.name}! লগইন সফল হয়েছে।`, 'success');
+    showToast('মোবাইল ওটিপি লগইন সাময়িকভাবে বন্ধ আছে। দয়া করে Google অথবা Email ও পাসওয়ার্ড দিয়ে লগইন করুন।', 'info');
   };
 
   const logout = async () => {
     try {
       await signOut(auth);
     } catch (e) {
-      // ignore
+      console.warn('Sign out note:', e);
     }
-    setCurrentUser(INITIAL_USER);
+    setCurrentUser(null);
     setIsAdminMode(false);
+    localStorage.removeItem('dc_user');
+    sessionStorage.removeItem('dc_admin_unlocked');
     showToast('লগআউট সফল হয়েছে।', 'info');
   };
 
-  const updateUserProfile = (updates: Partial<User>) => {
-    setCurrentUser((prev) => ({
-      ...prev,
-      ...updates
-    }));
-    showToast('প্রোফাইল তথ্য সফলভাবে আপডেট হয়েছে!', 'success');
+  const updateUserProfile = async (updates: Partial<User>) => {
+    if (!auth.currentUser || !currentUser) {
+      showToast('প্রোফাইল আপডেট করতে প্রথমে লগইন করুন।', 'error');
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'users', auth.currentUser.uid), updates);
+      setCurrentUser((prev) => (prev ? { ...prev, ...updates } : null));
+      showToast('প্রোফাইল তথ্য সফলভাবে আপডেট হয়েছে!', 'success');
+    } catch (err: any) {
+      console.warn('Update profile note:', err?.message || err);
+      showToast('প্রোফাইল আপডেট করা যায়নি।', 'error');
+    }
   };
 
-  const submitDeposit = async (method: PaymentMethodType, amount: number, senderPhone: string, trxId: string) => {
+  const submitDeposit = async (method: PaymentMethodType, amount: number, senderPhone: string, trxId: string): Promise<boolean> => {
+    if (!auth.currentUser || !currentUser) {
+      showToast('ডিপোজিট করতে অনুগ্রহ করে প্রথমে আপনার অ্যাকাউন্টে লগইন করুন।', 'error');
+      setActiveTab('login');
+      return false;
+    }
+
     const newDeposit: DepositRequest = {
       id: 'DEP-' + Math.floor(1000 + Math.random() * 9000),
-      userId: currentUser.id,
-      userName: currentUser.name,
+      userId: auth.currentUser.uid, // REAL Firebase Auth UID
+      userName: currentUser.name || auth.currentUser.displayName || 'গ্রাহক',
       method,
       amount,
       senderPhone,
@@ -558,23 +555,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
     };
 
-    setDeposits((prev) => [newDeposit, ...prev]);
-
-    // Persist to Firestore deposits collection
+    // Persist directly to Firestore deposits collection
     try {
-      setDoc(doc(db, 'deposits', newDeposit.id), {
+      await setDoc(doc(db, 'deposits', newDeposit.id), {
         ...newDeposit,
+        userEmail: auth.currentUser.email || '',
         createdAtTimestamp: serverTimestamp()
-      }, { merge: true }).catch(() => {});
-    } catch {
-      // ignore
-    }
+      }, { merge: true });
 
-    showToast('ডিপোজিট রিকোয়েস্ট জমা হয়েছে! এডমিন যাচাই করে ব্যালেন্স যোগ করবেন।', 'success');
-    return true;
+      setDeposits((prev) => [newDeposit, ...prev.filter((d) => d.id !== newDeposit.id)]);
+      showToast('ডিপোজিট রিকোয়েস্ট জমা হয়েছে! এডমিন যাচাই করে ব্যালেন্স যোগ করবেন।', 'success');
+      return true;
+    } catch (fsErr: any) {
+      console.warn('Firestore submitDeposit note:', fsErr?.message || fsErr);
+      showToast(`ডিপোজিট জমা দিতে সমস্যা হয়েছে: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+      return false;
+    }
   };
 
-  const purchaseProduct = (productId: string, packageId: string, playerId: string, zoneId?: string) => {
+  const purchaseProduct = async (
+    productId: string,
+    packageId: string,
+    playerId: string,
+    zoneId?: string
+  ): Promise<{ success: boolean; error?: string; order?: Order }> => {
+    if (!auth.currentUser || !currentUser) {
+      showToast('অর্ডার করতে অনুগ্রহ করে প্রথমে আপনার অ্যাকাউন্টে লগইন করুন।', 'error');
+      setActiveTab('login');
+      return { success: false, error: 'অর্ডার করতে অনুগ্রহ করে লগইন করুন।' };
+    }
+
     const product = products.find((p) => p.id === productId);
     if (!product) return { success: false, error: 'পণ্য খুঁজে পাওয়া যায়নি।' };
 
@@ -597,33 +607,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    // Deduct balance
     const updatedBalance = Number((currentUser.walletBalance - pkg.price).toFixed(2));
-    setCurrentUser((prev) => ({
-      ...prev,
-      walletBalance: updatedBalance,
-      savedGameUid: playerId || prev.savedGameUid
-    }));
-
     const serverRef = '#DC-' + Math.floor(100000 + Math.random() * 900000);
-    const nowTimeStr = new Date().toLocaleTimeString('bn-BD', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    }) + ', ' + new Date().toLocaleDateString('bn-BD', { month: 'short', day: 'numeric' });
+    const nowTimeStr =
+      new Date().toLocaleTimeString('bn-BD', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }) +
+      ', ' +
+      new Date().toLocaleDateString('bn-BD', { month: 'short', day: 'numeric' });
 
-    // Create Order with initial 'pending' status
     const newOrder: Order = {
       id: 'ORD-' + Math.floor(5000 + Math.random() * 5000),
-      userId: currentUser.id,
-      userName: currentUser.name,
+      userId: auth.currentUser.uid, // REAL Firebase Auth UID
+      userName: currentUser.name || auth.currentUser.displayName || 'গ্রাহক',
       productId: product.id,
       productTitle: product.title,
       packageId: pkg.id,
-      packageName: `${pkg.name} (${pkg.amount})`,
+      packageName: `${pkg.name} (${pkg.amount || pkg.diamonds || ''})`,
       price: pkg.price,
       playerId,
-      zoneId,
+      zoneId: zoneId || '',
       status: 'pending',
       createdAt: nowTimeStr,
       serverRef,
@@ -631,54 +636,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       notes: 'অর্ডার সিস্টেমে গৃহীত হয়েছে। সার্ভার হ্যান্ডশেকের অপেক্ষায় রয়েছে।'
     };
 
-    setOrders((prev) => [newOrder, ...prev]);
-    setActiveTrackingOrderId(newOrder.id);
-
-    // Persist to Firestore orders collection
     try {
-      setDoc(doc(db, 'orders', newOrder.id), {
+      // 1. Write to Firestore orders collection
+      await setDoc(doc(db, 'orders', newOrder.id), {
         ...newOrder,
+        userEmail: auth.currentUser.email || '',
         createdAtTimestamp: serverTimestamp()
-      }, { merge: true }).catch(() => {});
-    } catch {
-      // ignore
+      }, { merge: true });
+
+      // 2. Update user's wallet balance in Firestore users collection
+      await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+        walletBalance: updatedBalance,
+        savedGameUid: playerId
+      });
+
+      // 3. Update local state
+      setCurrentUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              walletBalance: updatedBalance,
+              savedGameUid: playerId
+            }
+          : null
+      );
+
+      setOrders((prev) => [newOrder, ...prev.filter((o) => o.id !== newOrder.id)]);
+      setActiveTrackingOrderId(newOrder.id);
+
+      showToast(`অর্ডার সফল! ${pkg.name} গৃহীত হয়েছে (Pending)।`, 'success');
+      return { success: true, order: newOrder };
+    } catch (fsErr: any) {
+      console.warn('Firestore purchaseProduct note:', fsErr?.message || fsErr);
+      showToast(`অর্ডার সম্পন্ন করা সম্ভব হয়নি: ${fsErr?.message || 'সার্ভার ত্রুটি'}`, 'error');
+      return { success: false, error: 'অর্ডার তৈরি করা যায়নি, আবার চেষ্টা করুন।' };
     }
-
-    showToast(`অর্ডার সফল! ${pkg.name} গৃহীত হয়েছে (Pending)। লাইভ ট্র্যাক হচ্ছে।`, 'success');
-
-    // Real-time Progression: Step 1 (Pending) -> Step 2 (Processing) after 3.2s
-    setTimeout(() => {
-      setOrders((prev) =>
-        prev.map((ord) =>
-          ord.id === newOrder.id && ord.status === 'pending'
-            ? {
-                ...ord,
-                status: 'processing',
-                processingAt: new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-                notes: 'সার্ভার এপিআই এর সাথে কানেক্ট হয়েছে এবং ডায়মন্ড/আইটেম ডিসপ্যাচ করা হচ্ছে...'
-              }
-            : ord
-        )
-      );
-    }, 3200);
-
-    // Step 2 (Processing) -> Step 3 (Delivered) after 8.2s total
-    setTimeout(() => {
-      setOrders((prev) =>
-        prev.map((ord) =>
-          ord.id === newOrder.id && (ord.status === 'pending' || ord.status === 'processing')
-            ? {
-                ...ord,
-                status: 'delivered',
-                deliveredAt: new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-                notes: `সফলভাবে গেম একাউন্টে পাঠানো হয়েছে! রেফারেন্স: ${serverRef}`
-              }
-            : ord
-        )
-      );
-    }, 8200);
-
-    return { success: true, order: newOrder };
   };
 
   const advanceOrderStep = (orderId: string) => {
@@ -713,7 +705,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const approveDeposit = async (depositId: string) => {
-    if (currentUser.role !== 'admin') {
+    if (!currentUser || currentUser.role !== 'admin') {
       showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা ডিপোজিট অনুমোদন করতে পারেন।', 'error');
       return;
     }
@@ -764,17 +756,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // If target user is current user, update balance
     if (deposit.userId === currentUser.id) {
-      setCurrentUser((prev) => ({
+      setCurrentUser((prev) => (prev ? {
         ...prev,
         walletBalance: Number((prev.walletBalance + deposit.amount).toFixed(2))
-      }));
+      } : null));
     }
 
     showToast(`ডিপোজিট ${deposit.id} (৳ ${deposit.amount}) সরাসরি Firestore-এ অ্যাপ্রুভ করা হয়েছে!`, 'success');
   };
 
   const rejectDeposit = async (depositId: string, reason: string) => {
-    if (currentUser.role !== 'admin') {
+    if (!currentUser || currentUser.role !== 'admin') {
       showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা ডিপোজিট বাতিল করতে পারেন।', 'error');
       return;
     }
@@ -813,7 +805,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateOrderStatus = async (orderId: string, status: OrderStatus, notes?: string) => {
-    if (currentUser.role !== 'admin') {
+    if (!currentUser || currentUser.role !== 'admin') {
       showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা অর্ডার স্ট্যাটাস আপডেট করতে পারেন।', 'error');
       return;
     }
@@ -854,7 +846,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const seedProductsToFirestore = async () => {
-    if (currentUser.role !== 'admin') {
+    if (!currentUser || currentUser.role !== 'admin') {
       showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা ক্যাটালগ সিড করতে পারেন।', 'error');
       return;
     }
@@ -904,7 +896,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addProduct = async (product: TopUpProduct) => {
-    if (currentUser.role !== 'admin') {
+    if (!currentUser || currentUser.role !== 'admin') {
       showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা নতুন প্রোডাক্ট যোগ করতে পারেন।', 'error');
       return;
     }
@@ -958,7 +950,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateProduct = async (updatedProduct: TopUpProduct) => {
-    if (currentUser.role !== 'admin') {
+    if (!currentUser || currentUser.role !== 'admin') {
       showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা প্রোডাক্ট আপডেট করতে পারেন।', 'error');
       return;
     }
@@ -984,7 +976,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteProduct = async (productId: string) => {
-    if (currentUser.role !== 'admin') {
+    if (!currentUser || currentUser.role !== 'admin') {
       showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা প্রোডাক্ট মুছতে পারেন।', 'error');
       return;
     }
@@ -1000,7 +992,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const toggleProductActive = async (productId: string) => {
-    if (currentUser.role !== 'admin') {
+    if (!currentUser || currentUser.role !== 'admin') {
       showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা প্রোডাক্ট হাইড/শো করতে পারেন।', 'error');
       return;
     }
@@ -1027,7 +1019,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const toggleProductStock = async (productId: string) => {
-    if (currentUser.role !== 'admin') {
+    if (!currentUser || currentUser.role !== 'admin') {
       showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা স্টক নিয়ন্ত্রণ করতে পারেন।', 'error');
       return;
     }
@@ -1054,7 +1046,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const togglePackageStock = async (productId: string, packageId: string) => {
-    if (currentUser.role !== 'admin') {
+    if (!currentUser || currentUser.role !== 'admin') {
       showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা প্যাকেজ স্টক নিয়ন্ত্রণ করতে পারেন।', 'error');
       return;
     }
@@ -1082,7 +1074,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateProductImage = async (productId: string, newImageUrl: string) => {
-    if (currentUser.role !== 'admin') {
+    if (!currentUser || currentUser.role !== 'admin') {
       showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা ছবি পরিবর্তন করতে পারেন।', 'error');
       return;
     }
@@ -1103,7 +1095,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateProductPackages = async (productId: string, packages: TopUpPackage[]) => {
-    if (currentUser.role !== 'admin') {
+    if (!currentUser || currentUser.role !== 'admin') {
       showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা প্যাকেজ পরিবর্তন করতে পারেন।', 'error');
       return;
     }
@@ -1166,6 +1158,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider
       value={{
         currentUser,
+        isAuthReady,
         isAdminMode,
         setIsAdminMode,
         activeTab,

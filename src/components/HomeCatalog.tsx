@@ -359,14 +359,16 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
               </div>
 
               <div>
-                <p className="text-xs text-slate-800 font-bold">আপনার বর্তমান ওয়ালেট ব্যালেন্স</p>
+                <p className="text-xs text-slate-800 font-bold">
+                  {currentUser ? 'আপনার বর্তমান ওয়ালেট ব্যালেন্স' : 'ডিসি টপ-আপ ওয়ালেট'}
+                </p>
                 <div className="flex items-baseline gap-2 mt-0.5">
                   <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-black font-sans">
-                    ৳ {currentUser.walletBalance.toFixed(2)}
+                    ৳ {currentUser ? currentUser.walletBalance.toFixed(2) : '0.00'}
                   </span>
                   <span className="text-xs text-emerald-950 font-bold bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-300 flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
-                    সক্রিয় ওয়ালেট
+                    {currentUser ? 'সক্রিয় ওয়ালেট' : 'লগইন করুন'}
                   </span>
                 </div>
               </div>
@@ -397,32 +399,6 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
               <span>আমার অর্ডার</span>
             </button>
           </div>
-        </div>
-
-        {/* Live News Ticker / Guarantee Badges */}
-        <div className="mt-5 pt-4 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs text-black font-semibold">
-          <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-xs">
-            <Zap className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span className="truncate">১-৩ মিনিটে অটোমেটেড ডেলিভারি</span>
-          </div>
-          <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-xs">
-            <ShieldCheck className="w-4 h-4 text-teal-600 shrink-0" />
-            <span className="truncate">১০০% সিকিউর ট্রানজেকশন গ্যারান্টি</span>
-          </div>
-          <a
-            id="home-whatsapp-helpline-card"
-            href={SUPPORT_WHATSAPP_LINK}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between gap-2 bg-emerald-50 hover:bg-emerald-100 px-3 py-2 rounded-lg border border-emerald-300 text-emerald-950 shadow-xs transition-colors cursor-pointer group"
-            title={`২৪/৭ কাস্টমার সাপোর্ট হেল্পলাইন - WhatsApp: ${SUPPORT_PHONE_FORMATTED}`}
-          >
-            <div className="flex items-center gap-2 truncate">
-              <MessageCircle className="w-4 h-4 text-emerald-700 shrink-0" />
-              <span className="truncate font-bold">২৪/৭ কাস্টমার সাপোর্ট ({SUPPORT_PHONE_FORMATTED})</span>
-            </div>
-            <ExternalLink className="w-3.5 h-3.5 text-emerald-700 shrink-0 opacity-70 group-hover:opacity-100" />
-          </a>
         </div>
       </div>
 
@@ -806,18 +782,28 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
       <div className="rounded-2xl bg-slate-50 border border-slate-200 p-5 sm:p-6 space-y-4 text-black">
         <h4 className="text-sm font-extrabold text-black flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>ডিসি টপ-আপ থেকে কেনাকাটা করার ৩টি সহজ ধাপ</span>
+          <span>ডিসি টপ-আপ থেকে কিনার সহজ ৩টি ধাপ</span>
         </h4>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-          <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-1.5 shadow-xs">
-            <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center justify-center font-extrabold text-xs">
-              ১
+          <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-1.5 shadow-xs flex flex-col justify-between">
+            <div className="space-y-1.5">
+              <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center justify-center font-extrabold text-xs">
+                ১
+              </div>
+              <p className="font-bold text-black">টাকা যোগ (Deposit) করুন</p>
+              <p className="text-slate-800 leading-relaxed font-medium">
+                বিকাশ বা নগদ পার্সোনাল নম্বরে (01845-735906 অথবা 01806-030750) সেন্ড মানি করে TrxID ও প্রেরক নম্বর সাবমিট করুন।
+              </p>
             </div>
-            <p className="font-bold text-black">টাকা যোগ (Deposit) করুন</p>
-            <p className="text-slate-800 leading-relaxed font-medium">
-              বিকাশ, নগদ বা রকেট পার্সোনাল নম্বরে সেন্ড মানি করে TrxID ও প্রেরক নম্বর সাবমিট করুন।
-            </p>
+            <a
+              href="https://youtube.com/@badshah_999x"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-[11px] text-red-600 font-bold hover:underline pt-2 border-t border-slate-100 cursor-pointer"
+            >
+              <span>▶ ভিডিও গাইড দেখুন</span>
+            </a>
           </div>
 
           <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-1.5 shadow-xs">
@@ -839,6 +825,42 @@ export const HomeCatalog: React.FC<HomeCatalogProps> = ({ onSelectProduct }) => 
               ওয়ালেট ব্যালেন্স দিয়ে কনফার্ম করলেই মুহূর্তেই আপনার গেম একাউন্টে সরাসরি টপ-আপ পৌঁছে যাবে।
             </p>
           </div>
+        </div>
+
+        {/* YouTube Video Tutorial Link: "কিভাবে খুব সহজে ওয়েবসাইটের টাকা এড করবেন" */}
+        <div className="pt-3 border-t border-slate-200">
+          <a
+            id="youtube-add-money-guide-link"
+            href="https://youtube.com/@badshah_999x"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 p-4 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-700 hover:to-rose-800 text-white transition-all shadow-md hover:shadow-lg cursor-pointer transform active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-white text-red-600 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                <svg className="w-6 h-6 fill-current text-red-600" viewBox="0 0 24 24">
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                </svg>
+              </div>
+              <div className="space-y-0.5">
+                <span className="text-[10px] uppercase tracking-wider font-extrabold text-white/95 bg-black/25 px-2 py-0.5 rounded-full inline-flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>অফিসিয়াল YouTube ভিডিও টিউটোরিয়াল</span>
+                </span>
+                <h5 className="text-sm sm:text-base font-extrabold text-white leading-snug">
+                  কিভাবে খুব সহজে ওয়েবসাইটের টাকা এড করবেন
+                </h5>
+                <p className="text-[11px] text-white/90">
+                  সম্পূর্ণ ভিডিও টিউটোরিয়াল দেখতে এখানে ক্লিক করুন (YouTube: @badshah_999x)
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white text-red-600 font-extrabold text-xs shrink-0 self-start sm:self-auto group-hover:bg-slate-100 transition-colors shadow-xs">
+              <span>ভিডিও দেখুন</span>
+              <ExternalLink className="w-3.5 h-3.5 text-red-600" />
+            </div>
+          </a>
         </div>
       </div>
     </div>

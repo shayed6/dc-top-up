@@ -109,6 +109,7 @@ export interface PaymentAccountInfo {
   method: PaymentMethodType;
   name: string;
   number: string;
+  numbers?: string[];
   type: 'Personal' | 'Agent';
   qrPlaceholder?: string;
   instructions: string[];

@@ -1,6 +1,6 @@
 {
   "name": "DC Top Up",
-  "description": "Bangladeshi digital top-up marketplace for game credits, in-game currency, and instant wallet recharge via bKash, Nagad, and Rocket.",
+  "description": "বাংলাদেশে সবচেয়ে কম দামে ফ্রি ফায়ার ডায়মন্ড, উইকলি ও মান্থলি মেম্বারশিপ, পাবজি ইউসি এবং গেম টপ-আপ কিনুন বিকাশ ও নগদ দিয়ে। ১-৩ মিনিটে ইনস্ট্যান্ট ডেলিভারি — DC Top Up।",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

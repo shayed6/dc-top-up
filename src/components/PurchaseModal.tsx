@@ -4,7 +4,7 @@ import { TopUpProduct, TopUpPackage } from '../types';
 import { SafeImage } from './SafeImage';
 import { 
   X, AlertTriangle, ShieldCheck, Zap, Wallet, 
-  PlusCircle, HelpCircle, CheckCircle2 
+  PlusCircle, HelpCircle, CheckCircle2, Gift, Sparkles, Trophy
 } from 'lucide-react';
 
 interface PurchaseModalProps {
@@ -14,13 +14,80 @@ interface PurchaseModalProps {
   onGoToOrders: () => void;
 }
 
+const MYSTERY_BOX_TIERS = [
+  {
+    id: 'mb_bronze',
+    title: '১. ব্রোঞ্জ বক্স',
+    titleEn: 'Bronze Box',
+    icon: '🥉',
+    badge: 'ব্রোঞ্জ বক্স',
+    headerBg: 'bg-amber-100/90 text-amber-950 border-amber-300',
+    cardBorder: 'border-amber-400/60',
+    selectedRing: 'ring-amber-500 bg-amber-50/40',
+    rewards: [
+      '25 diamond',
+      '110 diamond',
+      'weekly light',
+      '1 টা weekly'
+    ]
+  },
+  {
+    id: 'mb_silver',
+    title: '২. সিলভার বক্স',
+    titleEn: 'Silver Box',
+    icon: '🥈',
+    badge: 'সিলভার বক্স',
+    headerBg: 'bg-slate-200 text-slate-900 border-slate-300',
+    cardBorder: 'border-slate-400/60',
+    selectedRing: 'ring-slate-500 bg-slate-50/70',
+    rewards: [
+      '১০০ diamond',
+      '310 diamond',
+      '2 টা weekly',
+      '1 টা monthly'
+    ]
+  },
+  {
+    id: 'mb_gold',
+    title: '৩. গোল্ড বক্স',
+    titleEn: 'Gold Box',
+    icon: '🥇',
+    badge: 'গোল্ড বক্স',
+    headerBg: 'bg-yellow-200 text-yellow-950 border-yellow-400',
+    cardBorder: 'border-yellow-500/60',
+    selectedRing: 'ring-yellow-500 bg-yellow-50/50',
+    rewards: [
+      '1 টা weekly',
+      '3 টা উইকলি',
+      '520 diamond',
+      '১ টা monthly'
+    ]
+  },
+  {
+    id: 'mb_diamond',
+    title: '৪. ডায়মন্ড বক্স',
+    titleEn: 'Diamond Box',
+    icon: '💎',
+    badge: 'ডায়মন্ড বক্স',
+    headerBg: 'bg-cyan-100 text-cyan-950 border-cyan-300',
+    cardBorder: 'border-cyan-400/60',
+    selectedRing: 'ring-cyan-500 bg-cyan-50/50',
+    rewards: [
+      '520 Diamond',
+      '1 টা monthly',
+      '2100 diamond',
+      '1 টা weekly'
+    ]
+  }
+];
+
 export const PurchaseModal: React.FC<PurchaseModalProps> = ({
   product,
   onClose,
   onGoToDeposit,
   onGoToOrders
 }) => {
-  const { currentUser, purchaseProduct, showToast } = useApp();
+  const { currentUser, purchaseProduct, setActiveTab, showToast } = useApp();
   
   const [selectedPackage, setSelectedPackage] = useState<TopUpPackage>(
     product.packages.find((p) => p.popular) || product.packages[0]
@@ -31,13 +98,22 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
   const [purchaseSuccessOrder, setPurchaseSuccessOrder] = useState<any>(null);
   const [showUidGuide, setShowUidGuide] = useState(false);
 
+  const isMysteryBox = product.id === 'mystery_box' || product.title.toLowerCase().includes('mystery');
+
   const price = selectedPackage?.price || 0;
   const isOutOfStock = Boolean(product.isOutOfStock || selectedPackage?.isOutOfStock);
-  const currentBalance = currentUser.walletBalance;
-  const isInsufficient = currentBalance < price;
+  const currentBalance = currentUser?.walletBalance || 0;
+  const isInsufficient = currentUser ? currentBalance < price : false;
   const shortage = isInsufficient ? price - currentBalance : 0;
 
-  const handleConfirmPurchase = () => {
+  const handleConfirmPurchase = async () => {
+    if (!currentUser) {
+      showToast('অর্ডার সম্পন্ন করতে অনুগ্রহ করে প্রথমে আপনার অ্যাকাউন্টে লগইন করুন।', 'info');
+      onClose();
+      setActiveTab('login');
+      return;
+    }
+
     if (isOutOfStock) {
       showToast('দুঃখিত, এই প্যাকেজটি বর্তমানে স্টক আউট।', 'error');
       return;
@@ -59,7 +135,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
     }
 
     setIsSubmitting(true);
-    const result = purchaseProduct(product.id, selectedPackage.id, playerId.trim(), zoneId.trim());
+    const result = await purchaseProduct(product.id, selectedPackage.id, playerId.trim(), zoneId.trim());
 
     if (result.success && result.order) {
       setPurchaseSuccessOrder(result.order);
@@ -137,7 +213,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
               </div>
               <div className="flex justify-between pt-2 border-t border-slate-200">
                 <span className="text-slate-700 font-bold">অবশিষ্ট ওয়ালেট ব্যালেন্স:</span>
-                <span className="font-extrabold text-black">৳ {currentUser.walletBalance.toFixed(2)}</span>
+                <span className="font-extrabold text-black">৳ {currentUser ? currentUser.walletBalance.toFixed(2) : '0.00'}</span>
               </div>
             </div>
 
@@ -282,6 +358,20 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
                   );
                 })}
               </div>
+
+              {isMysteryBox && (
+                <div className="pt-1 text-right">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      document.getElementById('mystery-box-details-section')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="text-xs text-amber-800 hover:text-amber-950 font-bold inline-flex items-center gap-1 cursor-pointer underline underline-offset-2"
+                  >
+                    <span>🎁 কোন বক্সে কি পাবেন? নিচে 'Details' সেকশন দেখুন ↓</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Step 3: Wallet Balance & Payment Summary */}
@@ -351,7 +441,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
               <button
                 id="confirm-purchase-btn"
                 type="button"
-                disabled={isOutOfStock || isInsufficient || isSubmitting}
+                disabled={isOutOfStock || (currentUser !== null && isInsufficient) || isSubmitting}
                 onClick={handleConfirmPurchase}
                 className="w-full py-3.5 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold text-sm shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed transform active:scale-[0.99] cursor-pointer"
               >
@@ -359,6 +449,11 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
                   <>
                     <AlertTriangle className="w-4 h-4 text-rose-400" />
                     <span>বর্তমানে স্টক আউট (Out of Stock)</span>
+                  </>
+                ) : !currentUser ? (
+                  <>
+                    <ShieldCheck className="w-4 h-4 stroke-[2.5]" />
+                    <span>লগইন করে অর্ডার কনফার্ম করুন (৳ {price})</span>
                   </>
                 ) : (
                   <>
@@ -377,6 +472,170 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
                   : `অর্ডার নিশ্চিত করার সাথে সাথে ওয়ালেট থেকে ৳ ${price} কর্তন করা হবে।`}
               </p>
             </div>
+
+            {/* Mystery Box 'Details' Section - Exactly at the bottom */}
+            {isMysteryBox && (
+              <div 
+                id="mystery-box-details-section"
+                className="mt-6 pt-5 border-t-2 border-dashed border-amber-300 rounded-2xl bg-amber-50/60 p-4 sm:p-5 space-y-4 text-slate-900 shadow-xs animate-in fade-in"
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-amber-200">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 text-white flex items-center justify-center font-bold shadow-xs">
+                      <Gift className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-sm sm:text-base text-slate-900 font-sora">
+                        Details
+                      </h4>
+                      <p className="text-[11px] text-slate-600 font-medium">
+                        মিস্ট্রি বক্স প্যাকেজের বিস্তারিত তথ্য:
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-950 border border-amber-300">
+                    প্যাকেজ বিবরণ
+                  </span>
+                </div>
+
+                {/* 1, 2, 3, 4 Package Information Breakdown */}
+                <div className="space-y-2.5 text-xs">
+                  {/* 1. ব্রোঞ্জ বক্স */}
+                  <div className="p-3.5 rounded-xl bg-white border border-amber-300/80 shadow-xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-slate-950 text-sm flex items-center gap-1.5">
+                        <span>🥉</span>
+                        <span>1. ব্রোঞ্জ বক্স :</span>
+                      </span>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-200 font-mono">
+                        ৳ 45
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 pt-1 pl-5">
+                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                        <span className="text-amber-600 font-bold">=</span>
+                        <span>25 diamond</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                        <span className="text-amber-600 font-bold">=</span>
+                        <span>110 diamond</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                        <span className="text-amber-600 font-bold">=</span>
+                        <span>weekly light</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                        <span className="text-amber-600 font-bold">=</span>
+                        <span>1 টা weekly</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. সিলভার বক্স */}
+                  <div className="p-3.5 rounded-xl bg-white border border-slate-300 shadow-xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-slate-950 text-sm flex items-center gap-1.5">
+                        <span>🥈</span>
+                        <span>2. সিলভার বক্স :</span>
+                      </span>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-900 border border-slate-300 font-mono">
+                        ৳ 120
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 pt-1 pl-5">
+                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                        <span className="text-amber-600 font-bold">=</span>
+                        <span>১০০ diamond</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                        <span className="text-amber-600 font-bold">=</span>
+                        <span>310 diamond</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                        <span className="text-amber-600 font-bold">=</span>
+                        <span>2 টা weekly</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                        <span className="text-amber-600 font-bold">=</span>
+                        <span>1 টা monthly</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. গোল্ড বক্স */}
+                  <div className="p-3.5 rounded-xl bg-white border border-yellow-400 shadow-xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-slate-950 text-sm flex items-center gap-1.5">
+                        <span>🥇</span>
+                        <span>3. গোল্ড বক্স :</span>
+                      </span>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-yellow-200 text-yellow-950 border border-yellow-300 font-mono">
+                        ৳ 390
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 pt-1 pl-5">
+                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                        <span className="text-amber-600 font-bold">=</span>
+                        <span>1 টা weekly</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                        <span className="text-amber-600 font-bold">=</span>
+                        <span>3 টা উইকলি</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                        <span className="text-amber-600 font-bold">=</span>
+                        <span>520 diamond</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                        <span className="text-amber-600 font-bold">=</span>
+                        <span>১ টা monthly</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4. ডায়মন্ড বক্স */}
+                  <div className="p-3.5 rounded-xl bg-white border border-cyan-400 shadow-xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-slate-950 text-sm flex items-center gap-1.5">
+                        <span>💎</span>
+                        <span>4. ডায়মন্ড বক্স :</span>
+                      </span>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-cyan-100 text-cyan-950 border border-cyan-300 font-mono">
+                        ৳ 790
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 pt-1 pl-5">
+                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                        <span className="text-amber-600 font-bold">=</span>
+                        <span>520 Diamond</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                        <span className="text-amber-600 font-bold">=</span>
+                        <span>1 টা monthly</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                        <span className="text-amber-600 font-bold">=</span>
+                        <span>2100 diamond</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                        <span className="text-amber-600 font-bold">=</span>
+                        <span>1 টা weekly</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Descriptive Text Quote */}
+                <div className="p-3.5 rounded-xl bg-amber-500/15 border border-amber-300 text-slate-900 text-xs shadow-xs">
+                  <div className="flex items-start gap-2.5">
+                    <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="font-bold leading-relaxed text-slate-900 text-[12px] sm:text-[13px]">
+                      আপনারা যারা মিস্ট্রি বক্স অর্ডার করবেন তারা কোন প্যাকেজ নিলে কি কি পাবেন উপরে দেওয়া আছে এগুলোর ভিতর থেকে যে কোন একটা পাবেন যত বেশি মিষ্টির বক্স অর্ডার করবেন অত ভালো প্রাইস পাবেন 💎
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { PAYMENT_ACCOUNTS, SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from '../data/initialData';
+import { PAYMENT_ACCOUNTS, PAYMENT_NUMBERS, SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from '../data/initialData';
 import { PaymentMethodType } from '../types';
 import { SafeImage } from './SafeImage';
 import { 
@@ -9,25 +9,57 @@ import {
 } from 'lucide-react';
 
 export const AddMoneyView: React.FC = () => {
-  const { submitDeposit, currentUser, showToast } = useApp();
+  const { submitDeposit, currentUser, setActiveTab, showToast } = useApp();
   
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType>('bkash');
   const [amount, setAmount] = useState<string>('250');
-  const [senderPhone, setSenderPhone] = useState<string>(currentUser.phone || '');
+  const [senderPhone, setSenderPhone] = useState<string>(currentUser?.phone || '');
   const [trxId, setTrxId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [copiedNumber, setCopiedNumber] = useState(false);
+  const [copiedNum, setCopiedNum] = useState<string | null>(null);
   const [lastSubmittedSuccess, setLastSubmittedSuccess] = useState<{ amount: number; trxId: string; method: string } | null>(null);
+
+  if (!currentUser) {
+    return (
+      <div className="max-w-xl mx-auto my-12 p-8 bg-white border border-slate-200 rounded-2xl shadow-xl text-center space-y-5">
+        <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-xs">
+          <Wallet className="w-8 h-8" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 font-sora">
+            টাকা যোগ করতে লগইন প্রয়োজন
+          </h2>
+          <p className="text-sm text-slate-600 mt-2 max-w-sm mx-auto">
+            ডিসি ওয়ালেটে ব্যালেন্স রিচার্জ ও লেনদেনের সঠিক রেকর্ডের জন্য অনুগ্রহ করে প্রথমে আপনার অ্যাকাউন্টে লগইন করুন।
+          </p>
+        </div>
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <button
+            onClick={() => setActiveTab('login')}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#E0A500] hover:bg-[#B98A00] text-white font-bold text-sm shadow-md transition-all cursor-pointer"
+          >
+            লগইন / সাইন-আপ করুন
+          </button>
+          <button
+            onClick={() => setActiveTab('home')}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm transition-all cursor-pointer"
+          >
+            স্টোরফ্রন্ট ব্রাউজ করুন
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const currentAccount = PAYMENT_ACCOUNTS[selectedMethod];
 
   const quickAmounts = [100, 250, 500, 1000, 2000];
 
-  const handleCopyNumber = (num: string) => {
-    navigator.clipboard.writeText(num.replace(/[^0-9]/g, ''));
-    setCopiedNumber(true);
-    showToast(`${num} নম্বরটি ক্লিপবোর্ডে কপি হয়েছে!`, 'success');
-    setTimeout(() => setCopiedNumber(false), 2500);
+  const handleCopyNumber = (rawNum: string, formattedNum: string) => {
+    navigator.clipboard.writeText(rawNum.replace(/[^0-9]/g, ''));
+    setCopiedNum(rawNum);
+    showToast(`${formattedNum} নম্বরটি ক্লিপবোর্ডে কপি হয়েছে!`, 'success');
+    setTimeout(() => setCopiedNum(null), 2500);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,6 +152,36 @@ export const AddMoneyView: React.FC = () => {
 
       {/* Main Deposit Form Container */}
       <div className="space-y-6">
+        {/* Video Guide: কিভাবে খুব সহজে ওয়েবসাইটের টাকা এড করবেন */}
+        <a
+          id="deposit-youtube-tutorial-link"
+          href="https://youtube.com/@badshah_999x"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white transition-all shadow-sm hover:shadow-md cursor-pointer group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white text-red-600 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+              <svg className="w-5 h-5 fill-current text-red-600" viewBox="0 0 24 24">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+              </svg>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-white/90 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>ভিডিও টিউটোরিয়াল</span>
+              </p>
+              <h5 className="text-xs sm:text-sm font-extrabold text-white">
+                কিভাবে খুব সহজে ওয়েবসাইটের টাকা এড করবেন
+              </h5>
+            </div>
+          </div>
+          <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-white/20 text-white group-hover:bg-white group-hover:text-red-600 transition-colors flex items-center gap-1">
+            <span>ভিডিও দেখুন</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </span>
+        </a>
+
         {/* Step 1: Select Payment Method - Clean 2-column layout (bKash & Nagad only) */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200 space-y-4 shadow-xs">
           <div className="flex items-center justify-between">
@@ -172,35 +234,67 @@ export const AddMoneyView: React.FC = () => {
             </button>
           </div>
 
-          {/* Account Details Box */}
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <span className="text-[11px] text-slate-700 font-bold block">
-                {currentAccount.name} ({currentAccount.type})
+          {/* Account Details Box - Showing Both Numbers */}
+          <div className="space-y-3 pt-1">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+              <span className="text-xs font-extrabold text-black flex items-center gap-1.5">
+                <Smartphone className="w-4 h-4 text-emerald-700" />
+                <span>আমাদের {selectedMethod === 'bkash' ? 'বিকাশ' : 'নগদ'} পার্সোনাল নম্বরসমূহ (যেকোনো একটায় পাঠান):</span>
               </span>
-              <span className="text-xl sm:text-2xl font-black text-black tracking-wider font-mono select-all">
-                {currentAccount.number}
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-950 border border-emerald-300 self-start sm:self-auto">
+                উভয় নম্বরে বিকাশ ও নগদ বিদ্যমান
               </span>
             </div>
 
-            <button
-              type="button"
-              id="copy-account-number-btn"
-              onClick={() => handleCopyNumber(currentAccount.number)}
-              className="px-4 py-2 rounded-xl bg-black hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer"
-            >
-              {copiedNumber ? (
-                <>
-                  <Check className="w-4 h-4 text-emerald-400" />
-                  <span>কপি হয়েছে!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4 text-white" />
-                  <span>নম্বর কপি করুন</span>
-                </>
-              )}
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {PAYMENT_NUMBERS.map((item, idx) => {
+                const isCopied = copiedNum === item.raw;
+                return (
+                  <div
+                    key={item.id}
+                    className="p-3.5 rounded-xl bg-slate-50 border border-slate-300 hover:border-black transition-all flex items-center justify-between gap-2 shadow-xs"
+                  >
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200 text-slate-800 font-mono">
+                          নম্বর {idx + 1}
+                        </span>
+                        <span className="text-[11px] font-bold text-slate-700">বিকাশ ও নগদ পার্সোনাল</span>
+                      </div>
+                      <span className="text-lg sm:text-xl font-black text-black tracking-wider font-mono select-all">
+                        {item.number}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      id={`copy-number-${idx + 1}-btn`}
+                      onClick={() => handleCopyNumber(item.raw, item.number)}
+                      className="px-3.5 py-2 rounded-xl bg-black hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1 transition-all shadow-xs cursor-pointer shrink-0"
+                    >
+                      {isCopied ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>কপি হয়েছে!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 text-white" />
+                          <span>কপি</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs font-semibold flex items-center gap-2">
+              <span className="text-emerald-700 font-bold">✓</span>
+              <span>
+                <strong>01845735906</strong> এবং <strong>01806030750</strong> — এই দুটো নম্বরেই বিকাশ এবং নগদ পার্সোনাল রয়েছে। আপনি সুবিধাজনক যেকোনো একটি নম্বরে সেন্ড মানি করতে পারবেন।
+              </span>
+            </div>
           </div>
 
           {/* Step-by-step instructions in Bangla */}

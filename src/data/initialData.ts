@@ -21,20 +21,26 @@ export const ADMIN_USER: User = {
   joinedAt: '2024-11-01'
 };
 
-export const SUPPORT_PHONE = '01845735906';
-export const SUPPORT_PHONE_FORMATTED = '01845-735906';
-export const SUPPORT_WHATSAPP_LINK = 'https://wa.me/8801845735906';
+export const SUPPORT_PHONE = '01806030750';
+export const SUPPORT_PHONE_FORMATTED = '01806-030750';
+export const SUPPORT_WHATSAPP_LINK = 'https://wa.me/8801806030750';
+
+export const PAYMENT_NUMBERS = [
+  { id: 'num_1', number: '01845-735906', raw: '01845735906', label: 'নম্বর ১ (বিকাশ ও নগদ)' },
+  { id: 'num_2', number: '01806-030750', raw: '01806030750', label: 'নম্বর ২ (বিকাশ ও নগদ)' }
+];
 
 export const PAYMENT_ACCOUNTS: Record<'bkash' | 'nagad', PaymentAccountInfo> = {
   bkash: {
     method: 'bkash',
     name: 'bKash Personal (বিকাশ পার্সোনাল)',
     number: '01845-735906',
+    numbers: ['01845-735906', '01806-030750'],
     type: 'Personal',
     color: '#D82365', // Authentic bKash pink accent
     instructions: [
       'আপনার বিকাশ অ্যাপ অথবা *247# ডায়াল করে "Send Money" (সেন্ড মানি) অপশন বেছে নিন।',
-      'প্রাপক নম্বর হিসেবে আমাদের পার্সোনাল নম্বরটি লিখুন: 01845-735906',
+      'প্রাপক নম্বর হিসেবে আমাদের যেকোনো একটি নম্বরে পাঠান: 01845-735906 অথবা 01806-030750 (দুটোতেই বিকাশ ও নগদ বিদ্যমান)।',
       'কাঙ্ক্ষিত পরিমাণ টাকা ও আপনার গোপন পিন দিয়ে ট্রানজেকশন সফল করুন।',
       'এসএমএস (SMS) বা অ্যাপ থেকে ৮-১০ ডিজিটের Transaction ID (TrxID) টি কপি করে নিচের বক্সে দিন।'
     ]
@@ -43,11 +49,12 @@ export const PAYMENT_ACCOUNTS: Record<'bkash' | 'nagad', PaymentAccountInfo> = {
     method: 'nagad',
     name: 'Nagad Personal (নগদ পার্সোনাল)',
     number: '01845-735906',
+    numbers: ['01845-735906', '01806-030750'],
     type: 'Personal',
     color: '#F25822', // Authentic Nagad orange accent
     instructions: [
       'আপনার নগদ অ্যাপ অথবা *167# ডায়াল করে "Send Money" অপশন সিলেক্ট করুন।',
-      'প্রাপক নম্বর হিসেবে আমাদের নগদ নম্বরটি লিখুন: 01845-735906',
+      'প্রাপক নম্বর হিসেবে আমাদের যেকোনো একটি নম্বরে পাঠান: 01845-735906 অথবা 01806-030750 (দুটোতেই বিকাশ ও নগদ বিদ্যমান)।',
       'টাকার পরিমাণ ও পিন দিয়ে কনফার্ম করুন (নগদে ক্যাশ-আউট নয়, শুধু সেন্ড মানি)।',
       'প্রাপ্ত ৮ ডিজিটের TrxID টি এবং আপনার যে নম্বর থেকে পাঠিয়েছেন তা দিয়ে সাবমিট করুন।'
     ]
@@ -83,7 +90,7 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     subCategory: 'Lucky Box',
     badge: 'লাকি ড্রপ 🎁',
     badgeTag: 'Special Offer',
-    description: 'লাকি মিস্ট্রি বক্স খুলে জিতে নিন গ্যারান্টিড ডায়মন্ড, রানিং বান্ডেল ও সারপ্রাইজ রিওয়ার্ড।',
+    description: 'ব্রোঞ্জ, সিলভার, গোল্ড ও ডায়মন্ড বক্স থেকে যেকোনো একটি নিশ্চিত আকর্ষণীয় রিওয়ার্ড পাবেন! যত বেশি মিস্ট্রি বক্স অর্ডার করবেন অত ভালো প্রাইস পাবেন 💎',
     playerIdLabel: 'Player ID (UID)',
     image: '/images/ff_mystery_box_1790099065451.jpg',
     bannerImageUrl: '/images/ff_mystery_box_1790099065451.jpg',
@@ -91,10 +98,10 @@ export const INITIAL_PRODUCTS: TopUpProduct[] = [
     isActive: true,
     sortOrder: 2,
     packages: [
-      { id: 'mb_bronze', name: 'Bronze Mystery Box (৫০-১০০ 💎 নিশ্চিত)', amount: 'ব্রোঞ্জ বক্স', diamonds: '৫০-১০০ 💎', price: 45, originalPrice: 60 },
-      { id: 'mb_silver', name: 'Silver Mystery Box (১৫০-৩০০ 💎 নিশ্চিত)', amount: 'সিলভার বক্স', diamonds: '১৫০-৩০০ 💎', price: 120, originalPrice: 150, popular: true },
-      { id: 'mb_gold', name: 'Gold Mystery Box (৫০০-১০০০ 💎 নিশ্চিত)', amount: 'গোল্ড বক্স', diamonds: '৫০০-১০০০ 💎', price: 390, originalPrice: 480, popular: true },
-      { id: 'mb_diamond', name: 'Diamond Mystery Box (১০০০-২৫০০ 💎 নিশ্চিত)', amount: 'ডায়মন্ড বক্স', diamonds: '১০০০-২৫০০ 💎', price: 790, originalPrice: 990 }
+      { id: 'mb_bronze', name: '১. ব্রোঞ্জ বক্স (Bronze Box)', amount: '১. ব্রোঞ্জ বক্স', diamonds: '25/110 💎 বা Weekly Light / 1টা Weekly', price: 45, originalPrice: 60 },
+      { id: 'mb_silver', name: '২. সিলভার বক্স (Silver Box)', amount: '২. সিলভার বক্স', diamonds: '১০০/310 💎 বা 2টা Weekly / 1টা Monthly', price: 120, originalPrice: 150, popular: true },
+      { id: 'mb_gold', name: '৩. গোল্ড বক্স (Gold Box)', amount: '৩. গোল্ড বক্স', diamonds: '1টা/3টা Weekly বা 520 💎 / ১টা Monthly', price: 390, originalPrice: 480, popular: true },
+      { id: 'mb_diamond', name: '৪. ডায়মন্ড বক্স (Diamond Box)', amount: '৪. ডায়মন্ড বক্স', diamonds: '520/2100 💎 বা 1টা Monthly / 1টা Weekly', price: 790, originalPrice: 990 }
     ]
   },
   {
@@ -455,7 +462,7 @@ export const INITIAL_BANNERS: HomeBanner[] = [
   {
     id: 'banner_wallet',
     title: 'ডিসি ওয়ালেট রিচার্জ (০% ক্যাশআউট ফি)',
-    subtitle: 'বিকাশ ও নগদে 01845-735906 নম্বরে সেন্ড মানি করে মাত্র ৩ মিনিটে ওয়ালেটে ফান্ড যুক্ত করুন।',
+    subtitle: 'বিকাশ ও নগদে 01845-735906 অথবা 01806-030750 নম্বরে সেন্ড মানি করে মাত্র ৩ মিনিটে ওয়ালেটে ফান্ড যুক্ত করুন।',
     imageUrl: '/dc_logo.jpg',
     badge: '০% ফি রিচার্জ',
     actionTab: 'deposit',

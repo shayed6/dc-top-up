@@ -14,6 +14,38 @@ export const OrdersView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<Order | null>(null);
 
+  if (!currentUser) {
+    return (
+      <div className="max-w-xl mx-auto my-12 p-8 bg-white border border-slate-200 rounded-2xl shadow-xl text-center space-y-5">
+        <div className="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
+          <ShoppingBag className="w-8 h-8" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 font-sora">
+            অর্ডার হিস্ট্রি দেখতে লগইন করুন
+          </h2>
+          <p className="text-sm text-slate-600 mt-2 max-w-sm mx-auto">
+            আপনার ক্রয়কৃত সকল অর্ডার ও লাইভ ডেলিভারি ট্র্যাকিং দেখতে আপনার অ্যাকাউন্টে লগইন করুন।
+          </p>
+        </div>
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <button
+            onClick={() => setActiveTab('login')}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#E0A500] hover:bg-[#B98A00] text-white font-bold text-sm shadow-md transition-all cursor-pointer"
+          >
+            লগইন করুন
+          </button>
+          <button
+            onClick={() => setActiveTab('home')}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm transition-all cursor-pointer"
+          >
+            টপ-আপ শপ দেখুন
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // User's orders
   const myOrders = orders.filter((o) => o.userId === currentUser.id);
 

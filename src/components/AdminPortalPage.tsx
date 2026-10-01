@@ -12,7 +12,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
 
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     // Check if session has admin unlock or if current user is admin role
-    return sessionStorage.getItem('dc_admin_unlocked') === 'true' || currentUser.role === 'admin';
+    return sessionStorage.getItem('dc_admin_unlocked') === 'true' || currentUser?.role === 'admin';
   });
 
   const [passcode, setPasscode] = useState('');
@@ -21,7 +21,7 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
   const handleUnlockAdmin = (e: React.FormEvent) => {
     e.preventDefault();
     // Default passcodes for manager/admin access
-    if (passcode === 'admin123' || passcode === '01845' || passcode === '123456' || passcode === 'admin') {
+    if (passcode === 'admin123' || passcode === '01806' || passcode === '01806030750' || passcode === '01845' || passcode === '123456' || passcode === 'admin') {
       sessionStorage.setItem('dc_admin_unlocked', 'true');
       setIsAdminAuthenticated(true);
       setErrorMsg('');
