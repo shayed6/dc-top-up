@@ -14,6 +14,7 @@ export const UserProfileView: React.FC = () => {
     currentUser, 
     orders, 
     products,
+    deposits,
     setActiveTab, 
     setSelectedProduct,
     setActiveTrackingOrderId, 
@@ -478,6 +479,116 @@ export const UserProfileView: React.FC = () => {
             })}
           </div>
         )}
+      </div>
+
+      {/* 3.5. Wallet Deposits, Manual Credits & Refund History */}
+      <div className="p-5 sm:p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-purple-600" />
+              <h3 className="text-base sm:text-lg font-black text-black">
+                ওয়ালেট লেনদেন ও রিফান্ড ইতিহাস
+              </h3>
+            </div>
+            <p className="text-xs text-slate-600 mt-0.5">
+              আপনার সকল ডিপোজিট, এডমিন সরাসরি জমা এবং বাতিলকৃত অর্ডারের রিফান্ড বিবরণী।
+            </p>
+          </div>
+
+          <button
+            onClick={() => setActiveTab('deposit')}
+            className="text-xs font-extrabold text-purple-700 hover:text-purple-900 flex items-center gap-1 self-start sm:self-auto cursor-pointer"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>নতুন ডিপোজিট করুন</span>
+          </button>
+        </div>
+
+        {/* Transactions List */}
+        {(() => {
+          const myDeposits = deposits.filter((d) => d.userId === currentUser.id);
+
+          if (myDeposits.length === 0) {
+            return (
+              <div className="p-6 rounded-xl bg-slate-50 border border-dashed border-slate-300 text-center space-y-1.5">
+                <Wallet className="w-7 h-7 text-slate-400 mx-auto" />
+                <p className="font-bold text-xs text-black">কোনো ডিপোজিট বা রিফান্ড রেকর্ড নেই</p>
+                <p className="text-[11px] text-slate-600">আপনি বিকাশ বা নগদে ডিপোজিট করলে তা এখানে প্রদর্শিত হবে।</p>
+              </div>
+            );
+          }
+
+          return (
+            <div className="space-y-2.5">
+              {myDeposits.map((dep) => {
+                const isRefund = dep.type === 'refund' || dep.method === 'refund';
+                const isManual = dep.type === 'manual' || dep.method === 'manual' || dep.isManual;
+
+                return (
+                  <div
+                    key={dep.id}
+                    className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs transition-all ${
+                      isRefund
+                        ? 'bg-rose-50/30 border-rose-200'
+                        : isManual
+                        ? 'bg-purple-50/30 border-purple-200'
+                        : 'bg-white border-slate-200'
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {isRefund ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-950 border border-rose-300">
+                            রিফান্ড (Refund)
+                          </span>
+                        ) : isManual ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-950 border border-purple-300">
+                            ম্যানুয়াল জমা (Manual Deposit)
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-900 border border-slate-300 uppercase">
+                            {dep.method}
+                          </span>
+                        )}
+
+                        <span className="font-mono text-xs text-slate-500 font-bold">
+                          TrxID: {dep.trxId}
+                        </span>
+
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                            dep.status === 'approved'
+                              ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
+                              : dep.status === 'pending'
+                              ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                              : 'bg-rose-100 text-rose-950 border border-rose-300'
+                          }`}
+                        >
+                          {dep.status === 'approved' ? 'অনুমোদিত (Approved)' : dep.status === 'pending' ? 'যাচাই চলছে (Pending)' : 'বাতিল (Rejected)'}
+                        </span>
+                      </div>
+
+                      <div className="text-[11px] text-slate-600 flex flex-wrap gap-x-3 gap-y-0.5">
+                        <span>সময়: <strong>{dep.createdAt}</strong></span>
+                        {dep.rejectReason && (
+                          <span className="text-slate-800 font-medium">বিবরণ: {dep.rejectReason}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-left sm:text-right shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                      <span className="text-[10px] text-slate-500 block font-bold">ওয়ালেটে যোগ</span>
+                      <span className="text-base font-black text-emerald-700 font-sans">
+                        + ৳ {dep.amount.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
       {/* 4. Account Security & Support Helpline */}

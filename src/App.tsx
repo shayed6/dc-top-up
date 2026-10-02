@@ -18,7 +18,7 @@ import { AuthModal } from './components/AuthModal';
 import { ToastContainer } from './components/ToastContainer';
 import { TopUpProduct } from './types';
 import { SafeImage } from './components/SafeImage';
-import { ShieldCheck, Zap, Headphones, MessageCircle } from 'lucide-react';
+import { ShieldCheck, Zap, Headphones, MessageCircle, ShieldAlert } from 'lucide-react';
 import { SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from './data/initialData';
 
 const checkIsAdminRoute = () => {
@@ -36,7 +36,7 @@ const checkIsAdminRoute = () => {
 };
 
 const MainLayout: React.FC = () => {
-  const { activeTab, setActiveTab, selectedProduct, setSelectedProduct } = useApp();
+  const { activeTab, setActiveTab, selectedProduct, setSelectedProduct, currentUser } = useApp();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAdminRoute, setIsAdminRoute] = useState<boolean>(() => checkIsAdminRoute());
 
@@ -84,6 +84,27 @@ const MainLayout: React.FC = () => {
 
       {/* Top Navigation Bar - Regular user navigation only */}
       <Navbar onOpenAuth={() => setIsAuthModalOpen(true)} />
+
+      {/* Banned User Alert Message */}
+      {currentUser?.status === 'banned' && (
+        <div id="banned-user-alert-banner" className="bg-red-600 text-white px-4 py-3 shadow-md border-b border-red-700">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm font-bold">
+            <div className="flex items-center gap-2.5">
+              <ShieldAlert className="w-5 h-5 shrink-0 text-red-200" />
+              <span>আপনার অ্যাকাউন্টটি সাময়িকভাবে স্থগিত (Banned) করা হয়েছে। নতুন কোনো ডিপোজিট বা অর্ডার করা যাবে না।</span>
+            </div>
+            <a
+              href={SUPPORT_WHATSAPP_LINK}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-1.5 bg-white text-red-700 rounded-lg text-xs font-black hover:bg-red-50 transition-colors shrink-0 self-start sm:self-auto flex items-center gap-1.5 shadow-xs"
+            >
+              <MessageCircle className="w-3.5 h-3.5 text-red-700" />
+              <span>সাপোর্টে কথা বলুন</span>
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-5 sm:pt-7">

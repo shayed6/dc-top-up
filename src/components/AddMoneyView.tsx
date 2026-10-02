@@ -11,13 +11,15 @@ import {
 export const AddMoneyView: React.FC = () => {
   const { submitDeposit, currentUser, setActiveTab, showToast } = useApp();
   
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType>('bkash');
+  const [selectedMethod, setSelectedMethod] = useState<'bkash' | 'nagad'>('bkash');
   const [amount, setAmount] = useState<string>('250');
   const [senderPhone, setSenderPhone] = useState<string>(currentUser?.phone || '');
   const [trxId, setTrxId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copiedNum, setCopiedNum] = useState<string | null>(null);
   const [lastSubmittedSuccess, setLastSubmittedSuccess] = useState<{ amount: number; trxId: string; method: string } | null>(null);
+
+  const isBanned = currentUser?.status === 'banned';
 
   if (!currentUser) {
     return (
@@ -64,6 +66,12 @@ export const AddMoneyView: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isBanned) {
+      showToast('আপনার অ্যাকাউন্ট সাময়িকভাবে বন্ধ রাখা হয়েছে। ডিপোজিট গ্রহণ করা সম্ভব নয়।', 'error');
+      return;
+    }
+
     const numAmount = parseFloat(amount);
 
     if (isNaN(numAmount) || numAmount < 20) {
@@ -126,6 +134,21 @@ export const AddMoneyView: React.FC = () => {
           </span>
         </div>
       </div>
+
+      {/* Banned User Blocked Alert Banner */}
+      {isBanned && (
+        <div id="banned-account-deposit-banner" className="p-4 rounded-2xl bg-red-50 border-2 border-red-300 text-red-950 flex items-start gap-3.5 shadow-xs">
+          <ShieldAlert className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h4 className="text-sm font-extrabold text-red-900">
+              আপনার অ্যাকাউন্ট সাময়িকভাবে বন্ধ রাখা হয়েছে
+            </h4>
+            <p className="text-xs text-red-800 leading-relaxed font-medium">
+              অ্যাকাউন্ট স্থগিত (Banned) থাকায় বর্তমানে নতুন কোনো টাকা যোগ (Deposit) বা রিকোয়েস্ট পাঠানোর সুবিধা নিষ্ক্রিয় করা হয়েছে। ওয়ালেট সংক্রান্ত কোনো প্রশ্ন বা সহায়তার জন্য নিচে দেওয়া হেল্পলাইনে যোগাযোগ করুন।
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Success Notification Alert if just submitted */}
       {lastSubmittedSuccess && (
@@ -304,7 +327,7 @@ export const AddMoneyView: React.FC = () => {
               <span>টাকা পাঠানোর নিয়মাবলি ({currentAccount.method.toUpperCase()}):</span>
             </p>
             <ul className="space-y-1.5 pl-5 list-decimal text-slate-800 font-medium">
-              {currentAccount.instructions.map((inst, idx) => (
+              {currentAccount.instructions.map((inst: string, idx: number) => (
                 <li key={idx} className="leading-relaxed">
                   {inst}
                 </li>
@@ -403,10 +426,15 @@ export const AddMoneyView: React.FC = () => {
           <button
             id="deposit-submit-btn"
             type="submit"
-            disabled={isSubmitting}
-            className="w-full py-3.5 px-4 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold text-sm shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+            disabled={isSubmitting || isBanned}
+            className="w-full py-3.5 px-4 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold text-sm shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
-            {isSubmitting ? (
+            {isBanned ? (
+              <>
+                <ShieldAlert className="w-4 h-4 text-rose-400" />
+                <span>অ্যাকাউন্ট সাময়িকভাবে বন্ধ রয়েছে (ডিপোজিট নিষ্ক্রিয়)</span>
+              </>
+            ) : isSubmitting ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
                 <span>যাচাই করা হচ্ছে...</span>

@@ -1,14 +1,16 @@
-export type PaymentMethodType = 'bkash' | 'nagad';
+export type PaymentMethodType = 'bkash' | 'nagad' | 'manual' | 'refund';
 
 export type DepositStatus = 'pending' | 'approved' | 'rejected';
 
-export type OrderStatus = 'pending' | 'processing' | 'delivered' | 'failed';
+export type OrderStatus = 'pending' | 'processing' | 'delivered' | 'failed' | 'rejected' | 'cancelled';
 
 export interface DepositRequest {
   id: string;
   userId: string;
   userName: string;
-  method: PaymentMethodType;
+  userEmail?: string;
+  method: PaymentMethodType | string;
+  type?: 'deposit' | 'manual' | 'refund' | string;
   amount: number;
   senderPhone: string;
   trxId: string;
@@ -16,6 +18,9 @@ export interface DepositRequest {
   rejectReason?: string;
   createdAt: string;
   verifiedAt?: string;
+  verifiedBy?: string;
+  isManual?: boolean;
+  orderId?: string;
 }
 
 export interface TopUpPackage {
@@ -55,6 +60,7 @@ export interface TopUpProduct {
 export interface AppNotice {
   id: string;
   text: string;
+  date?: string;
   type: 'info' | 'warning' | 'urgent' | 'offer';
   isActive: boolean;
   updatedAt: string;
@@ -65,16 +71,38 @@ export interface HomeBanner {
   title: string;
   subtitle?: string;
   imageUrl: string;
+  linkUrl?: string;
   badge?: string;
   actionTab?: 'deposit' | 'orders' | 'home';
   actionText?: string;
   isActive: boolean;
 }
 
+export interface SiteConfigHomepage {
+  notice: {
+    text: string;
+    date?: string;
+    isActive: boolean;
+    type?: 'urgent' | 'offer' | 'warning' | 'info';
+  };
+  banners: Array<{
+    id?: string;
+    imageUrl: string;
+    title: string;
+    subtitle?: string;
+    linkUrl?: string;
+    badge?: string;
+    actionTab?: 'deposit' | 'orders' | 'home';
+    actionText?: string;
+    isActive?: boolean;
+  }>;
+}
+
 export interface Order {
   id: string;
   userId: string;
   userName: string;
+  userEmail?: string;
   productId: string;
   productTitle: string;
   packageId: string;
@@ -89,6 +117,8 @@ export interface Order {
   serverRef?: string;
   estimatedDeliverySeconds?: number;
   notes?: string;
+  refunded?: boolean;
+  refundedAt?: string;
 }
 
 export interface User {
@@ -102,7 +132,7 @@ export interface User {
   joinedAt: string;
   avatarUrl?: string;
   savedGameUid?: string;
-  status?: string;
+  status?: 'active' | 'banned' | string;
 }
 
 export interface PaymentAccountInfo {

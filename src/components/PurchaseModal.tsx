@@ -4,7 +4,7 @@ import { TopUpProduct, TopUpPackage } from '../types';
 import { SafeImage } from './SafeImage';
 import { 
   X, AlertTriangle, ShieldCheck, Zap, Wallet, 
-  PlusCircle, HelpCircle, CheckCircle2, Gift, Sparkles, Trophy
+  PlusCircle, HelpCircle, CheckCircle2, Gift, Sparkles, Trophy, ShieldAlert
 } from 'lucide-react';
 
 interface PurchaseModalProps {
@@ -102,6 +102,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
 
   const price = selectedPackage?.price || 0;
   const isOutOfStock = Boolean(product.isOutOfStock || selectedPackage?.isOutOfStock);
+  const isBanned = currentUser?.status === 'banned';
   const currentBalance = currentUser?.walletBalance || 0;
   const isInsufficient = currentUser ? currentBalance < price : false;
   const shortage = isInsufficient ? price - currentBalance : 0;
@@ -111,6 +112,11 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
       showToast('অর্ডার সম্পন্ন করতে অনুগ্রহ করে প্রথমে আপনার অ্যাকাউন্টে লগইন করুন।', 'info');
       onClose();
       setActiveTab('login');
+      return;
+    }
+
+    if (isBanned) {
+      showToast('আপনার অ্যাকাউন্ট সাময়িকভাবে বন্ধ রাখা হয়েছে। নতুন অর্ডার করা সম্ভব নয়।', 'error');
       return;
     }
 
@@ -436,16 +442,38 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
               )}
             </div>
 
+            {/* Banned User Blocked Alert */}
+            {isBanned && (
+              <div id="banned-user-order-blocked-alert" className="p-4 rounded-xl bg-red-50 border-2 border-red-300 text-red-950 text-xs space-y-1.5 animate-in fade-in shadow-xs">
+                <div className="flex items-start gap-2.5">
+                  <ShieldAlert className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-extrabold text-sm text-red-900 block">
+                      আপনার অ্যাকাউন্ট সাময়িকভাবে বন্ধ রাখা হয়েছে
+                    </span>
+                    <p className="text-red-800 leading-relaxed font-medium mt-0.5">
+                      অ্যাকাউন্ট স্থগিত (Banned) থাকায় বর্তমানে নতুন কোনো অর্ডার প্লেস করা সম্ভব নয়। বিস্তারিত জানতে সহায়তায় যোগাযোগ করুন।
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Confirm Purchase Action */}
             <div className="pt-2">
               <button
                 id="confirm-purchase-btn"
                 type="button"
-                disabled={isOutOfStock || (currentUser !== null && isInsufficient) || isSubmitting}
+                disabled={isOutOfStock || isBanned || (currentUser !== null && isInsufficient) || isSubmitting}
                 onClick={handleConfirmPurchase}
                 className="w-full py-3.5 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold text-sm shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed transform active:scale-[0.99] cursor-pointer"
               >
-                {isOutOfStock ? (
+                {isBanned ? (
+                  <>
+                    <ShieldAlert className="w-4 h-4 text-rose-400" />
+                    <span>অ্যাকাউন্ট সাময়িকভাবে বন্ধ রয়েছে (অর্ডার নিষ্ক্রিয়)</span>
+                  </>
+                ) : isOutOfStock ? (
                   <>
                     <AlertTriangle className="w-4 h-4 text-rose-400" />
                     <span>বর্তমানে স্টক আউট (Out of Stock)</span>

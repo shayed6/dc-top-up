@@ -19,7 +19,8 @@ import {
   onSnapshot, 
   collection, 
   serverTimestamp, 
-  increment 
+  increment,
+  runTransaction
 } from 'firebase/firestore';
 
 export type ActiveTab = 'home' | 'deposit' | 'orders' | 'profile' | 'login';
@@ -51,13 +52,20 @@ interface AppContextType {
 
   // Notice & Announcement
   notice: AppNotice;
-  updateNotice: (newNotice: Partial<AppNotice>) => void;
+  updateNotice: (newNotice: Partial<AppNotice>) => Promise<void>;
 
   // Promotional Banners
   banners: HomeBanner[];
-  addBanner: (banner: HomeBanner) => void;
-  updateBanner: (banner: HomeBanner) => void;
-  deleteBanner: (bannerId: string) => void;
+  addBanner: (banner: HomeBanner) => Promise<void>;
+  updateBanner: (banner: HomeBanner) => Promise<void>;
+  deleteBanner: (bannerId: string) => Promise<void>;
+  reorderBanners: (startIndex: number, endIndex: number) => Promise<void>;
+  saveAllBanners: (newBanners: HomeBanner[]) => Promise<void>;
+
+  // Users Management (Admin)
+  allUsers: User[];
+  toggleUserBan: (userId: string, newStatus: 'banned' | 'active') => Promise<void>;
+  addManualDeposit: (userId: string, amount: number, note?: string) => Promise<boolean>;
 
   // Auth
   loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
@@ -144,6 +152,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return INITIAL_BANNERS;
   });
 
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
 
   useEffect(() => {
@@ -351,6 +360,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
           firestoreProducts.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
           setProducts(firestoreProducts);
+        } else {
+          // Auto-seed initial products into Firestore if empty
+          INITIAL_PRODUCTS.forEach(async (p, i) => {
+            try {
+              await setDoc(doc(db, 'products', p.id), {
+                id: p.id,
+                title: p.title,
+                description: p.description,
+                bannerImageUrl: p.bannerImageUrl || p.image,
+                image: p.bannerImageUrl || p.image,
+                badgeTag: p.badgeTag || p.badge || '',
+                badge: p.badgeTag || p.badge || '',
+                isActive: p.isActive !== false,
+                sortOrder: typeof p.sortOrder === 'number' ? p.sortOrder : i + 1,
+                category: p.category,
+                subCategory: p.subCategory || '',
+                playerIdLabel: p.playerIdLabel || 'Player ID (UID)',
+                requiresZoneId: !!p.requiresZoneId,
+                zoneIdLabel: p.zoneIdLabel || '',
+                bannerGradient: p.bannerGradient || 'from-blue-600/30 to-purple-950/40',
+                packages: p.packages.map((pkg, idx) => ({
+                  id: pkg.id || `pkg_${idx}`,
+                  name: pkg.name,
+                  amount: pkg.amount || pkg.diamonds || '',
+                  diamonds: pkg.diamonds || pkg.amount || '',
+                  price: Number(pkg.price),
+                  originalPrice: pkg.originalPrice ? Number(pkg.originalPrice) : undefined,
+                  popular: !!pkg.popular,
+                  instantDelivery: pkg.instantDelivery !== false,
+                  isOutOfStock: !!pkg.isOutOfStock
+                })),
+                isOutOfStock: !!p.isOutOfStock,
+                createdAt: serverTimestamp()
+              }, { merge: true });
+            } catch (seedErr) {
+              console.warn('Auto seed product error:', seedErr);
+            }
+          });
         }
       }, (err) => {
         console.warn('Firestore products live listener note:', err);
@@ -358,6 +405,103 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return () => unsub();
     } catch (e) {
       console.warn('Firestore products subscription error:', e);
+    }
+  }, []);
+
+  // Real-time Firestore sync for siteConfig/homepage (banners & notice)
+  useEffect(() => {
+    try {
+      const siteConfigRef = doc(db, 'siteConfig', 'homepage');
+      const unsub = onSnapshot(siteConfigRef, async (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data.notice) {
+            setNotice({
+              id: 'notice_live',
+              text: data.notice.text || '',
+              date: data.notice.date || data.notice.updatedAt || '১ অক্টোবর, ২০২৬',
+              updatedAt: data.notice.date || data.notice.updatedAt || new Date().toISOString().split('T')[0],
+              type: data.notice.type || 'offer',
+              isActive: data.notice.isActive !== false
+            });
+          }
+          if (Array.isArray(data.banners) && data.banners.length > 0) {
+            setBanners(data.banners.map((b: any, idx: number) => ({
+              id: b.id || `banner_${idx}`,
+              title: b.title || '',
+              subtitle: b.subtitle || '',
+              imageUrl: b.imageUrl || '/dc_logo.jpg',
+              linkUrl: b.linkUrl || '',
+              badge: b.badge || 'অফার',
+              actionTab: b.actionTab || 'deposit',
+              actionText: b.actionText || 'টাকা যোগ করুন',
+              isActive: b.isActive !== false
+            })));
+          }
+        } else {
+          // If document does not exist yet in Firestore, seed with initial banners & notice
+          try {
+            await setDoc(siteConfigRef, {
+              notice: {
+                text: INITIAL_NOTICE.text,
+                date: INITIAL_NOTICE.date || INITIAL_NOTICE.updatedAt || '১ অক্টোবর, ২০২৬',
+                isActive: INITIAL_NOTICE.isActive,
+                type: INITIAL_NOTICE.type || 'offer'
+              },
+              banners: INITIAL_BANNERS.map((b) => ({
+                id: b.id,
+                imageUrl: b.imageUrl,
+                title: b.title,
+                subtitle: b.subtitle || '',
+                linkUrl: b.linkUrl || '',
+                badge: b.badge || '',
+                actionTab: b.actionTab || 'deposit',
+                actionText: b.actionText || 'টাকা যোগ করুন',
+                isActive: b.isActive !== false
+              })),
+              updatedAt: serverTimestamp()
+            }, { merge: true });
+          } catch (seedErr) {
+            console.warn('Auto seed siteConfig note (will persist when admin saves):', seedErr);
+          }
+        }
+      }, (err) => {
+        console.warn('siteConfig snapshot listener note:', err);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.warn('siteConfig listener error:', e);
+    }
+  }, []);
+
+  // Real-time Firestore sync for users collection (accessible by admin)
+  useEffect(() => {
+    try {
+      const usersColl = collection(db, 'users');
+      const unsub = onSnapshot(usersColl, (snapshot) => {
+        const list: User[] = [];
+        snapshot.forEach((u) => {
+          const d = u.data();
+          list.push({
+            id: u.id,
+            name: d.name || 'গ্রাহক',
+            email: d.email || '',
+            phone: d.phone || '',
+            walletBalance: typeof d.walletBalance === 'number' ? d.walletBalance : 0.00,
+            role: d.role || 'customer',
+            status: d.status || 'active',
+            joinedAt: d.joinedAt || '২০২৬',
+            photoURL: d.photoURL || '',
+            savedGameUid: d.savedGameUid || ''
+          });
+        });
+        setAllUsers(list);
+      }, (err) => {
+        console.warn('Firestore users live subscription note:', err);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.warn('Users listener setup error:', e);
     }
   }, []);
 
@@ -537,6 +681,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
+    if (currentUser.status === 'banned') {
+      showToast('আপনার অ্যাকাউন্টটি সাময়িকভাবে স্থগিত (Banned) করা হয়েছে। ডিপোজিট গ্রহণ করা সম্ভব নয়।', 'error');
+      return false;
+    }
+
     const newDeposit: DepositRequest = {
       id: 'DEP-' + Math.floor(1000 + Math.random() * 9000),
       userId: auth.currentUser.uid, // REAL Firebase Auth UID
@@ -583,6 +732,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('অর্ডার করতে অনুগ্রহ করে প্রথমে আপনার অ্যাকাউন্টে লগইন করুন।', 'error');
       setActiveTab('login');
       return { success: false, error: 'অর্ডার করতে অনুগ্রহ করে লগইন করুন।' };
+    }
+
+    if (currentUser.status === 'banned') {
+      showToast('আপনার অ্যাকাউন্টটি সাময়িকভাবে স্থগিত (Banned) করা হয়েছে। নতুন অর্ডার করা সম্ভব নয়।', 'error');
+      return { success: false, error: 'অ্যাকাউন্ট স্থগিত (Banned) রয়েছে।' };
     }
 
     const product = products.find((p) => p.id === productId);
@@ -810,25 +964,124 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
+    const targetOrder = orders.find((o) => o.id === orderId);
+    if (!targetOrder) return;
+
     const nowTime = new Date().toLocaleTimeString('bn-BD', {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit'
     });
 
+    const isCancelling = status === 'rejected' || status === 'cancelled';
+    const shouldRefund = isCancelling && !targetOrder.refunded && targetOrder.price > 0 && !!targetOrder.userId;
+
     const updateFields: any = {
       status,
-      notes: notes || (status === 'delivered' ? 'ডেলিভারি সম্পন্ন।' : status === 'processing' ? 'সার্ভার প্রসেসিং চলছে...' : status === 'pending' ? 'অপেক্ষমাণ।' : 'ব্যর্থ হয়েছে।')
+      notes: notes || (status === 'delivered' ? 'ডেলিভারি সম্পন্ন।' : status === 'processing' ? 'সার্ভার প্রসেসিং চলছে...' : status === 'pending' ? 'অপেক্ষমাণ।' : 'অর্ডারটি বাতিল ও রিফান্ড করা হয়েছে।')
     };
 
     if (status === 'delivered') updateFields.deliveredAt = nowTime;
     if (status === 'processing') updateFields.processingAt = nowTime;
 
-    // Direct browser client SDK updateDoc call to Firestore orders/{orderId}
+    const refundDepId = `REFUND-${targetOrder.id}`;
+    let refundDepositObj: DepositRequest | null = null;
+    let finalRefundedBalance: number | null = null;
+
     try {
-      await updateDoc(doc(db, 'orders', orderId), updateFields);
+      if (shouldRefund) {
+        // ATOMIC TRANSACTION: 1. Update order -> 2. Refund walletBalance -> 3. Create approved refund deposit record
+        await runTransaction(db, async (transaction) => {
+          const orderRef = doc(db, 'orders', orderId);
+          const orderSnap = await transaction.get(orderRef);
+          if (!orderSnap.exists()) {
+            throw new Error('অর্ডার ডকুমেন্ট পাওয়া যায়নি।');
+          }
+
+          const currentOrderData = orderSnap.data();
+          if (currentOrderData.refunded) {
+            // Already refunded, avoid double refunding
+            transaction.update(orderRef, { status, notes: notes || currentOrderData.notes });
+            return;
+          }
+
+          const userRef = doc(db, 'users', targetOrder.userId);
+          const userSnap = await transaction.get(userRef);
+
+          let currentBal = 0.00;
+          let userEmail = targetOrder.userEmail || '';
+          let userName = targetOrder.userName || 'গ্রাহক';
+
+          if (userSnap.exists()) {
+            const uData = userSnap.data();
+            currentBal = typeof uData.walletBalance === 'number' ? uData.walletBalance : 0.00;
+            userEmail = uData.email || userEmail;
+            userName = uData.name || userName;
+          }
+
+          finalRefundedBalance = Number((currentBal + targetOrder.price).toFixed(2));
+
+          refundDepositObj = {
+            id: refundDepId,
+            userId: targetOrder.userId,
+            userName,
+            userEmail,
+            method: 'refund',
+            type: 'refund',
+            amount: targetOrder.price,
+            senderPhone: 'রিফান্ড সিস্টেম (DC Refund)',
+            trxId: refundDepId,
+            status: 'approved',
+            orderId: targetOrder.id,
+            createdAt: nowTime,
+            verifiedAt: nowTime,
+            verifiedBy: currentUser.id,
+            rejectReason: notes || `অর্ডার #${targetOrder.id} (${targetOrder.productTitle}) বাতিলের মূল্য ফেরত (Refund)`
+          };
+
+          const refundRef = doc(db, 'deposits', refundDepId);
+
+          // 1. Update order
+          transaction.update(orderRef, {
+            ...updateFields,
+            refunded: true,
+            refundedAt: nowTime
+          });
+
+          // 2. Increment user's walletBalance
+          if (userSnap.exists()) {
+            transaction.update(userRef, {
+              walletBalance: finalRefundedBalance
+            });
+          }
+
+          // 3. Create refund deposit record
+          transaction.set(refundRef, {
+            ...refundDepositObj,
+            createdAtTimestamp: serverTimestamp()
+          });
+        });
+
+        // Update local states on successful transaction
+        if (refundDepositObj) {
+          setDeposits((prev) => [refundDepositObj!, ...prev.filter((d) => d.id !== refundDepId)]);
+        }
+
+        if (finalRefundedBalance !== null) {
+          if (targetOrder.userId === currentUser.id) {
+            setCurrentUser((prev) => prev ? { ...prev, walletBalance: finalRefundedBalance! } : null);
+          }
+          setAllUsers((prev) => prev.map((u) => u.id === targetOrder.userId ? { ...u, walletBalance: finalRefundedBalance! } : u));
+        }
+
+        showToast(`অর্ডার #${orderId} বাতিল করা হয়েছে এবং ৳ ${targetOrder.price} সফলভাবে ওয়ালেটে রিফান্ড হয়েছে (Transaction সফল)!`, 'success');
+      } else {
+        // Non-refund status update
+        await updateDoc(doc(db, 'orders', orderId), updateFields);
+        showToast(`অর্ডার #${orderId} স্ট্যাটাস সরাসরি Firestore-এ ${status.toUpperCase()} করা হয়েছে!`, 'info');
+      }
     } catch (fsErr: any) {
-      console.error('Firestore updateDoc order error:', fsErr);
+      console.error('Firestore runTransaction updateOrderStatus error:', fsErr);
       showToast(`Firestore অর্ডার আপডেট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
     }
 
@@ -837,12 +1090,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         o.id === orderId
           ? {
               ...o,
-              ...updateFields
+              ...updateFields,
+              ...(shouldRefund ? { refunded: true, refundedAt: nowTime } : {})
             }
           : o
       )
     );
-    showToast(`অর্ডার ${orderId} স্ট্যাটাস সরাসরি Firestore-এ ${status.toUpperCase()} করা হয়েছে!`, 'info');
   };
 
   const seedProductsToFirestore = async () => {
@@ -1126,32 +1379,230 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const updateNotice = (newNotice: Partial<AppNotice>) => {
-    setNotice((prev) => ({
-      ...prev,
+  const updateNotice = async (newNotice: Partial<AppNotice>) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা নোটিশ পরিবর্তন করতে পারেন।', 'error');
+      return;
+    }
+
+    const dateVal = newNotice.date || notice.date || notice.updatedAt || new Date().toLocaleDateString('bn-BD', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+
+    const updated: AppNotice = {
+      ...notice,
       ...newNotice,
-      updatedAt: new Date().toLocaleDateString('bn-BD', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      })
-    }));
-    showToast('হোমপেজ নোটিশ সফলভাবে আপডেট হয়েছে!', 'success');
+      date: dateVal,
+      updatedAt: dateVal
+    };
+
+    setNotice(updated);
+
+    try {
+      await setDoc(doc(db, 'siteConfig', 'homepage'), {
+        notice: {
+          text: updated.text,
+          date: updated.date || updated.updatedAt,
+          isActive: updated.isActive !== false,
+          type: updated.type || 'offer'
+        }
+      }, { merge: true });
+      showToast('হোমপেজ নোটিশ সরাসরি Firestore siteConfig-এ আপডেট হয়েছে!', 'success');
+    } catch (fsErr: any) {
+      console.error('Firestore update notice error:', fsErr);
+      showToast(`Firestore নোটিশ আপডেট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
   };
 
-  const addBanner = (banner: HomeBanner) => {
-    setBanners((prev) => [banner, ...prev]);
-    showToast('নতুন ব্যানার সফলভাবে যোগ করা হয়েছে!', 'success');
+  const saveAllBanners = async (newBanners: HomeBanner[]) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা ব্যানার পরিবর্তন করতে পারেন।', 'error');
+      return;
+    }
+
+    setBanners(newBanners);
+
+    try {
+      await setDoc(doc(db, 'siteConfig', 'homepage'), {
+        banners: newBanners.map((b) => ({
+          id: b.id,
+          title: b.title,
+          subtitle: b.subtitle || '',
+          imageUrl: b.imageUrl,
+          linkUrl: b.linkUrl || '',
+          badge: b.badge || '',
+          actionTab: b.actionTab || 'deposit',
+          actionText: b.actionText || 'টাকা যোগ করুন',
+          isActive: b.isActive !== false
+        }))
+      }, { merge: true });
+      showToast('ব্যানার তালিকা সরাসরি Firestore siteConfig-এ সংরক্ষিত হয়েছে!', 'success');
+    } catch (fsErr: any) {
+      console.error('Firestore save banners error:', fsErr);
+      showToast(`Firestore ব্যানার আপডেট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
   };
 
-  const updateBanner = (updatedBanner: HomeBanner) => {
-    setBanners((prev) => prev.map((b) => (b.id === updatedBanner.id ? updatedBanner : b)));
-    showToast('ব্যানার সফলভাবে আপডেট হয়েছে!', 'success');
+  const addBanner = async (banner: HomeBanner) => {
+    const updated = [banner, ...banners];
+    await saveAllBanners(updated);
   };
 
-  const deleteBanner = (bannerId: string) => {
-    setBanners((prev) => prev.filter((b) => b.id !== bannerId));
-    showToast('ব্যানার রিমুভ করা হয়েছে!', 'info');
+  const updateBanner = async (updatedBanner: HomeBanner) => {
+    const updated = banners.map((b) => (b.id === updatedBanner.id ? updatedBanner : b));
+    await saveAllBanners(updated);
+  };
+
+  const deleteBanner = async (bannerId: string) => {
+    const updated = banners.filter((b) => b.id !== bannerId);
+    await saveAllBanners(updated);
+  };
+
+  const reorderBanners = async (startIndex: number, endIndex: number) => {
+    if (startIndex < 0 || endIndex < 0 || startIndex >= banners.length || endIndex >= banners.length) return;
+    const result = Array.from(banners);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    await saveAllBanners(result);
+  };
+
+  const toggleUserBan = async (userId: string, newStatus: 'banned' | 'active') => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা ইউজার ব্যান/আনব্যান করতে পারেন।', 'error');
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'users', userId), {
+        status: newStatus
+      });
+
+      setAllUsers((prev) => prev.map((u) => u.id === userId ? { ...u, status: newStatus } : u));
+
+      if (userId === currentUser.id) {
+        setCurrentUser((prev) => prev ? { ...prev, status: newStatus } : null);
+      }
+
+      showToast(`ইউজার স্ট্যাটাস '${newStatus === 'banned' ? 'স্থগিত (Banned)' : 'সক্রিয় (Active)'}' করা হয়েছে!`, newStatus === 'banned' ? 'info' : 'success');
+    } catch (fsErr: any) {
+      console.error('Firestore toggleUserBan error:', fsErr);
+      showToast(`Firestore স্ট্যাটাস পরিবর্তন ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
+  };
+
+  const addManualDeposit = async (userId: string, amount: number, note?: string): Promise<boolean> => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা সরাসরি ডিপোজিট দিতে পারেন।', 'error');
+      return false;
+    }
+
+    if (!userId || isNaN(amount) || amount <= 0) {
+      showToast('সঠিক ইউজার এবং টাকার পরিমাণ দিন।', 'error');
+      return false;
+    }
+
+    const cleanInput = userId.trim();
+    const targetUser = allUsers.find(
+      (u) => u.id === cleanInput || u.email?.toLowerCase() === cleanInput.toLowerCase()
+    );
+
+    const targetUid = targetUser?.id || cleanInput;
+
+    const nowStr = new Date().toLocaleDateString('bn-BD', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const depositId = 'MAN-DEP-' + Date.now();
+    const trxId = 'MANUAL-' + Math.floor(100000 + Math.random() * 900000);
+
+    let finalNewBalance = 0;
+    let finalUserName = targetUser?.name || 'গ্রাহক';
+    let finalUserEmail = targetUser?.email || '';
+
+    try {
+      // ATOMIC TRANSACTION: 1. Read user balance -> 2. Create approved deposit (method: 'manual') -> 3. Increment user walletBalance
+      await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', targetUid);
+        const userSnap = await transaction.get(userRef);
+
+        if (!userSnap.exists()) {
+          throw new Error(`'${cleanInput}' দিয়ে কোনো ইউজার অ্যাকাউন্ট পাওয়া যায়নি।`);
+        }
+
+        const userData = userSnap.data();
+        finalUserName = userData.name || finalUserName;
+        finalUserEmail = userData.email || finalUserEmail;
+        const currentBal = typeof userData.walletBalance === 'number' ? userData.walletBalance : 0.00;
+        finalNewBalance = Number((currentBal + Number(amount)).toFixed(2));
+
+        const depositRef = doc(db, 'deposits', depositId);
+
+        // 1. Create deposit doc
+        transaction.set(depositRef, {
+          id: depositId,
+          userId: targetUid,
+          userName: finalUserName,
+          userEmail: finalUserEmail,
+          method: 'manual',
+          type: 'manual',
+          amount: Number(amount),
+          senderPhone: 'এডমিন সরাসরি জমা',
+          trxId,
+          status: 'approved',
+          isManual: true,
+          verifiedAt: nowStr,
+          verifiedBy: currentUser.id,
+          createdAt: nowStr,
+          createdAtTimestamp: serverTimestamp(),
+          rejectReason: note || 'এডমিন দ্বারা সরাসরি ওয়ালেট রিচার্জ (Manual Deposit)'
+        });
+
+        // 2. Atomically increment user's walletBalance
+        transaction.update(userRef, {
+          walletBalance: finalNewBalance,
+          lastDepositAt: serverTimestamp()
+        });
+      });
+
+      const newDeposit: DepositRequest = {
+        id: depositId,
+        userId: targetUid,
+        userName: finalUserName,
+        userEmail: finalUserEmail,
+        method: 'manual',
+        type: 'manual',
+        amount: Number(amount),
+        senderPhone: 'এডমিন সরাসরি জমা',
+        trxId,
+        status: 'approved',
+        isManual: true,
+        verifiedAt: nowStr,
+        verifiedBy: currentUser.id,
+        createdAt: nowStr,
+        rejectReason: note || 'এডমিন দ্বারা সরাসরি ওয়ালেট রিচার্জ (Manual Deposit)'
+      };
+
+      // Update local states
+      setDeposits((prev) => [newDeposit, ...prev.filter((d) => d.id !== depositId)]);
+      setAllUsers((prev) => prev.map((u) => u.id === targetUid ? { ...u, walletBalance: finalNewBalance } : u));
+
+      if (targetUid === currentUser.id) {
+        setCurrentUser((prev) => prev ? { ...prev, walletBalance: finalNewBalance } : null);
+      }
+
+      showToast(`সরাসরি ৳ ${amount} ইউজার '${finalUserName}'-এর ওয়ালেটে সফলভাবে যোগ করা হয়েছে (Transaction সফল)!`, 'success');
+      return true;
+    } catch (fsErr: any) {
+      console.error('Firestore runTransaction addManualDeposit error:', fsErr);
+      showToast(`ম্যানুয়াল ডিপোজিট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+      return false;
+    }
   };
 
   return (
@@ -1177,6 +1628,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addBanner,
         updateBanner,
         deleteBanner,
+        reorderBanners,
+        saveAllBanners,
+        allUsers,
+        toggleUserBan,
+        addManualDeposit,
         loginWithGoogle,
         signupWithEmail,
         loginWithEmail,

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { DepositRequest, TopUpProduct, TopUpPackage, ProductCategory, HomeBanner } from '../types';
+import { DepositRequest, TopUpProduct, TopUpPackage, ProductCategory, HomeBanner, Order } from '../types';
 import { PRESET_PRODUCT_IMAGES } from '../data/initialData';
 import { SafeImage } from './SafeImage';
 import { 
@@ -8,7 +8,8 @@ import {
   Users, ShoppingBag, Package, Plus, Trash2, AlertCircle, 
   Search, Copy, Check, DollarSign, RefreshCw, Image as ImageIcon,
   Megaphone, Flame, Info, AlertTriangle, Sparkles, ExternalLink,
-  ArrowRight, Tag, Eye, EyeOff, CheckSquare, Lock, ShieldAlert, Edit3, Database
+  ArrowRight, Tag, Eye, EyeOff, CheckSquare, Lock, ShieldAlert, Edit3, Database,
+  UserX, UserCheck, ArrowUp, ArrowDown, Wallet, Ban
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -34,12 +35,17 @@ export const AdminDashboard: React.FC = () => {
     addBanner,
     updateBanner,
     deleteBanner,
+    reorderBanners,
+    saveAllBanners,
+    allUsers,
+    toggleUserBan,
+    addManualDeposit,
     showToast,
     currentUser
   } = useApp();
 
   const [currentAdminTab, setCurrentAdminTab] = useState<
-    'pending_deposits' | 'all_deposits' | 'products' | 'notices_banners' | 'orders'
+    'pending_deposits' | 'all_deposits' | 'products' | 'notices_banners' | 'orders' | 'users'
   >('pending_deposits');
 
   // Reject deposit modal state
@@ -93,6 +99,7 @@ export const AdminDashboard: React.FC = () => {
 
   // Notice state in admin form
   const [noticeDraftText, setNoticeDraftText] = useState(notice.text);
+  const [noticeDraftDate, setNoticeDraftDate] = useState(notice.date || notice.updatedAt || '১ অক্টোবর, ২০২৬');
   const [noticeDraftType, setNoticeDraftType] = useState<'urgent' | 'offer' | 'warning' | 'info'>(notice.type);
   const [noticeDraftIsActive, setNoticeDraftIsActive] = useState(notice.isActive);
 
@@ -101,9 +108,36 @@ export const AdminDashboard: React.FC = () => {
   const [newBannerTitle, setNewBannerTitle] = useState('');
   const [newBannerSubtitle, setNewBannerSubtitle] = useState('');
   const [newBannerImageUrl, setNewBannerImageUrl] = useState('/images/ff_friday_offer_1790099054219.jpg');
+  const [newBannerLinkUrl, setNewBannerLinkUrl] = useState('');
   const [newBannerBadge, setNewBannerBadge] = useState('স্পেশাল অফার');
   const [newBannerActionText, setNewBannerActionText] = useState('টাকা যোগ করুন');
   const [newBannerActionTab, setNewBannerActionTab] = useState<'deposit' | 'orders' | 'home'>('deposit');
+
+  // Edit banner modal state
+  const [editingBanner, setEditingBanner] = useState<HomeBanner | null>(null);
+  const [editBannerTitle, setEditBannerTitle] = useState('');
+  const [editBannerSubtitle, setEditBannerSubtitle] = useState('');
+  const [editBannerImageUrl, setEditBannerImageUrl] = useState('');
+  const [editBannerLinkUrl, setEditBannerLinkUrl] = useState('');
+  const [editBannerBadge, setEditBannerBadge] = useState('');
+  const [editBannerActionText, setEditBannerActionText] = useState('');
+  const [editBannerActionTab, setEditBannerActionTab] = useState<'deposit' | 'orders' | 'home'>('deposit');
+
+  // User search and filter
+  const [userSearch, setUserSearch] = useState('');
+  const [userStatusFilter, setUserStatusFilter] = useState<'all' | 'active' | 'banned'>('all');
+
+  // Manual Deposit Modal State
+  const [showManualDepositModal, setShowManualDepositModal] = useState(false);
+  const [manualDepositUserId, setManualDepositUserId] = useState('');
+  const [manualDepositAmount, setManualDepositAmount] = useState('100');
+  const [manualDepositNote, setManualDepositNote] = useState('');
+  const [userDropdownSearch, setUserDropdownSearch] = useState('');
+  const [isSubmittingManualDeposit, setIsSubmittingManualDeposit] = useState(false);
+
+  // Reject / Cancel Order Modal State
+  const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
+  const [cancelOrderReason, setCancelOrderReason] = useState('স্টক স্বল্পতা বা সার্ভার সংযোগ ব্যর্থতার কারণে অর্ডারটি বাতিল ও মূল্য রিফান্ড করা হলো।');
 
   // TrxID copied feedback
   const [copiedTrx, setCopiedTrx] = useState<string | null>(null);
@@ -165,6 +199,22 @@ export const AdminDashboard: React.FC = () => {
       p.title.toLowerCase().includes(q) ||
       (p.subCategory && p.subCategory.toLowerCase().includes(q)) ||
       p.packages.some((pkg) => pkg.name.toLowerCase().includes(q))
+    );
+  });
+
+  // Filtered users for Users tab
+  const filteredUsers = allUsers.filter((u) => {
+    if (userStatusFilter !== 'all') {
+      if (userStatusFilter === 'active' && u.status === 'banned') return false;
+      if (userStatusFilter === 'banned' && u.status !== 'banned') return false;
+    }
+    if (!userSearch) return true;
+    const q = userSearch.toLowerCase();
+    return (
+      (u.name && u.name.toLowerCase().includes(q)) ||
+      (u.email && u.email.toLowerCase().includes(q)) ||
+      (u.phone && u.phone.toLowerCase().includes(q)) ||
+      (u.id && u.id.toLowerCase().includes(q))
     );
   });
 
@@ -323,7 +373,7 @@ export const AdminDashboard: React.FC = () => {
             }`}
           >
             <Megaphone className="w-3.5 h-3.5" />
-            <span>হোম নোটিশ ও ব্যানার ({banners.length})</span>
+            <span>Site Content (নোটিশ ও ব্যানার) ({banners.length})</span>
           </button>
 
           <button
@@ -338,12 +388,25 @@ export const AdminDashboard: React.FC = () => {
             <ShoppingBag className="w-3.5 h-3.5" />
             <span>গ্রাহক অর্ডার কিউ ({orders.length})</span>
           </button>
+
+          <button
+            id="admin-tab-users-btn"
+            onClick={() => setCurrentAdminTab('users')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              currentAdminTab === 'users'
+                ? 'bg-black text-white shadow-xs'
+                : 'text-black hover:bg-slate-200'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Users (ইউজার লিস্ট ও ব্যান) ({allUsers.length})</span>
+          </button>
         </div>
 
         {/* Tab 1: Pending Deposits */}
         {currentAdminTab === 'pending_deposits' && (
           <div className="p-4 sm:p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="font-extrabold text-sm text-black flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
@@ -353,6 +416,23 @@ export const AdminDashboard: React.FC = () => {
                   গ্রাহকের TrxID ও প্রেরক নম্বর আপনার বিকাশ/নগদ স্টেটমেন্টের সাথে মিলিয়ে অ্যাপ্রুভ অথবা রিজেক্ট করুন।
                 </p>
               </div>
+
+              {isAdmin && (
+                <button
+                  id="admin-add-manual-deposit-btn-pending"
+                  type="button"
+                  onClick={() => {
+                    setShowManualDepositModal(true);
+                    setManualDepositUserId('');
+                    setManualDepositAmount('100');
+                    setUserDropdownSearch('');
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-all self-start sm:self-auto"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Manual Deposit (সরাসরি জমা)</span>
+                </button>
+              )}
             </div>
 
             {pendingDeposits.length === 0 ? (
@@ -375,14 +455,22 @@ export const AdminDashboard: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <span
                           className={`text-xs font-extrabold uppercase px-2 py-0.5 rounded text-white ${
-                            dep.method === 'bkash'
+                            dep.method === 'manual' || dep.type === 'manual' || dep.isManual
+                              ? 'bg-purple-600'
+                              : dep.method === 'refund' || dep.type === 'refund'
+                              ? 'bg-rose-600'
+                              : dep.method === 'bkash'
                               ? 'bg-[#D82365]'
                               : dep.method === 'nagad'
                               ? 'bg-[#F25822]'
                               : 'bg-[#8C3494]'
                           }`}
                         >
-                          {dep.method}
+                          {dep.method === 'manual' || dep.type === 'manual' || dep.isManual
+                            ? 'MANUAL'
+                            : dep.method === 'refund' || dep.type === 'refund'
+                            ? 'REFUND'
+                            : dep.method}
                         </span>
                         <span className="font-mono font-extrabold text-sm text-black">{dep.id}</span>
                         <span className="text-xs text-slate-800 font-bold">({dep.userName})</span>
@@ -474,26 +562,45 @@ export const AdminDashboard: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
-                {(['all', 'pending', 'approved', 'rejected'] as const).map((st) => (
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
+                  {(['all', 'pending', 'approved', 'rejected'] as const).map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => setDepositFilterStatus(st)}
+                      className={`px-3 py-1.5 rounded-lg font-bold border transition-colors cursor-pointer ${
+                        depositFilterStatus === st
+                          ? 'bg-black text-white border-black'
+                          : 'bg-white text-black border-slate-300 hover:bg-slate-100'
+                      }`}
+                    >
+                      {st === 'all'
+                        ? 'সব'
+                        : st === 'pending'
+                        ? 'পেন্ডিং'
+                        : st === 'approved'
+                        ? 'অনুমোদিত'
+                        : 'বাতিল'}
+                    </button>
+                  ))}
+                </div>
+
+                {isAdmin && (
                   <button
-                    key={st}
-                    onClick={() => setDepositFilterStatus(st)}
-                    className={`px-3 py-1.5 rounded-lg font-bold border transition-colors cursor-pointer ${
-                      depositFilterStatus === st
-                        ? 'bg-black text-white border-black'
-                        : 'bg-white text-black border-slate-300 hover:bg-slate-100'
-                    }`}
+                    id="admin-add-manual-deposit-btn-all"
+                    type="button"
+                    onClick={() => {
+                      setShowManualDepositModal(true);
+                      setManualDepositUserId('');
+                      setManualDepositAmount('100');
+                      setUserDropdownSearch('');
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-all shrink-0"
                   >
-                    {st === 'all'
-                      ? 'সব'
-                      : st === 'pending'
-                      ? 'পেন্ডিং'
-                      : st === 'approved'
-                      ? 'অনুমোদিত'
-                      : 'বাতিল'}
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Manual Deposit</span>
                   </button>
-                ))}
+                )}
               </div>
             </div>
 
@@ -516,14 +623,22 @@ export const AdminDashboard: React.FC = () => {
                       <td className="p-3 font-mono font-bold text-black flex items-center gap-1.5">
                         <span
                           className={`text-[9px] uppercase px-1.5 py-0.5 rounded text-white font-extrabold ${
-                            dep.method === 'bkash'
+                            dep.method === 'manual' || dep.type === 'manual' || dep.isManual
+                              ? 'bg-purple-600'
+                              : dep.method === 'refund' || dep.type === 'refund'
+                              ? 'bg-rose-600'
+                              : dep.method === 'bkash'
                               ? 'bg-[#D82365]'
                               : dep.method === 'nagad'
                               ? 'bg-[#F25822]'
                               : 'bg-[#8C3494]'
                           }`}
                         >
-                          {dep.method}
+                          {dep.method === 'manual' || dep.type === 'manual' || dep.isManual
+                            ? 'MANUAL'
+                            : dep.method === 'refund' || dep.type === 'refund'
+                            ? 'REFUND'
+                            : dep.method}
                         </span>
                         <span>{dep.id}</span>
                       </td>
@@ -1004,16 +1119,34 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Notice Text Input */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-extrabold text-black block">নোটিশ বার্তা (Text):</label>
-                <textarea
-                  rows={3}
-                  value={noticeDraftText}
-                  onChange={(e) => setNoticeDraftText(e.target.value)}
-                  placeholder="যেমন: ফ্রাইডে স্পেশাল অফারে ১০০% বোনাস ডায়মন্ড চালু হয়েছে! বিকাশ ও নগদে দ্রুত রিচার্জ করুন।"
-                  className="w-full bg-white border border-slate-300 focus:border-black rounded-xl p-3 text-sm text-black shadow-xs focus:outline-none focus:ring-1 focus:ring-slate-300"
-                />
+              {/* Notice Text & Date Input */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2 space-y-1.5">
+                  <label className="text-xs font-extrabold text-black block">নোটিশ বার্তা (Text) *:</label>
+                  <textarea
+                    rows={3}
+                    value={noticeDraftText}
+                    onChange={(e) => setNoticeDraftText(e.target.value)}
+                    placeholder="যেমন: ফ্রাইডে স্পেশাল অফারে ১০০% বোনাস ডায়মন্ড চালু হয়েছে! বিকাশ ও নগদে দ্রুত রিচার্জ করুন।"
+                    className="w-full bg-white border border-slate-300 focus:border-black rounded-xl p-3 text-sm text-black shadow-xs focus:outline-none focus:ring-1 focus:ring-slate-300"
+                  />
+                </div>
+
+                <div className="space-y-1.5 flex flex-col justify-between">
+                  <div>
+                    <label className="text-xs font-extrabold text-black block mb-1">নোটিশের তারিখ (Date):</label>
+                    <input
+                      type="text"
+                      value={noticeDraftDate}
+                      onChange={(e) => setNoticeDraftDate(e.target.value)}
+                      placeholder="যেমন: ১ অক্টোবর, ২০২৬"
+                      className="w-full bg-white border border-slate-300 focus:border-black rounded-xl px-3 py-2 text-xs text-black shadow-xs font-medium"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-600 font-medium">
+                    গ্রাহকরা হোমপেজের শীর্ষে নোটিশের সাথে এই তারিখটি দেখতে পাবেন।
+                  </p>
+                </div>
               </div>
 
               {/* Live Preview Box */}
@@ -1045,16 +1178,23 @@ export const AdminDashboard: React.FC = () => {
                   >
                     <Megaphone className="w-4 h-4" />
                   </div>
-                  <div>
-                    <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-black/10">
-                      {noticeDraftType === 'urgent'
-                        ? 'জরুরি নোটিশ 🚨'
-                        : noticeDraftType === 'offer'
-                        ? 'স্পেশাল অফার 🔥'
-                        : noticeDraftType === 'warning'
-                        ? 'ওয়ার্নিং বার্তা ⚠️'
-                        : 'অফিসিয়াল ঘোষণা 📢'}
-                    </span>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-black/10">
+                        {noticeDraftType === 'urgent'
+                          ? 'জরুরি নোটিশ 🚨'
+                          : noticeDraftType === 'offer'
+                          ? 'স্পেশাল অফার 🔥'
+                          : noticeDraftType === 'warning'
+                          ? 'ওয়ার্নিং বার্তা ⚠️'
+                          : 'অফিসিয়াল ঘোষণা 📢'}
+                      </span>
+                      {noticeDraftDate && (
+                        <span className="text-[10px] text-slate-600 font-mono font-bold">
+                          {noticeDraftDate}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs sm:text-sm font-bold mt-0.5">
                       {noticeDraftText || 'নোটিশের লেখা এখানে প্রদর্শিত হবে...'}
                     </p>
@@ -1067,6 +1207,7 @@ export const AdminDashboard: React.FC = () => {
                 onClick={() => {
                   updateNotice({
                     text: noticeDraftText,
+                    date: noticeDraftDate,
                     type: noticeDraftType,
                     isActive: noticeDraftIsActive
                   });
@@ -1103,7 +1244,7 @@ export const AdminDashboard: React.FC = () => {
 
               {/* Banners Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {banners.map((b) => (
+                {banners.map((b, idx) => (
                   <div
                     key={b.id}
                     className={`rounded-2xl border p-4 bg-white space-y-3 shadow-xs transition-all ${
@@ -1144,13 +1285,46 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                     </div>
 
+                    {/* Banner Info Details */}
+                    <div className="space-y-1 text-[11px] text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                      <div>
+                        <span className="font-bold text-black">ছবি (Image URL): </span>
+                        <span className="font-mono text-slate-600 truncate block text-[10px]">{b.imageUrl}</span>
+                      </div>
+                      {b.linkUrl && (
+                        <div>
+                          <span className="font-bold text-black">লিংক (Link URL): </span>
+                          <span className="font-mono text-blue-700 truncate block text-[10px]">{b.linkUrl}</span>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Banner Action Bar */}
-                    <div className="flex items-center justify-between text-xs pt-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-700 font-bold">স্ট্যাটাস:</span>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1 border-t border-slate-200">
+                      <div className="flex items-center gap-1.5">
+                        {/* Reorder Buttons */}
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={() => reorderBanners(idx, idx - 1)}
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                          title="উপরে নিন (Move Up)"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === banners.length - 1}
+                          onClick={() => reorderBanners(idx, idx + 1)}
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                          title="নিচে নিন (Move Down)"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+
                         <button
                           onClick={() => updateBanner({ ...b, isActive: !b.isActive })}
-                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition-colors ${
+                          className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
                             b.isActive
                               ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
                               : 'bg-slate-200 text-slate-700'
@@ -1160,17 +1334,37 @@ export const AdminDashboard: React.FC = () => {
                         </button>
                       </div>
 
-                      <button
-                        onClick={() => {
-                          if (confirm(`আপনি কি '${b.title}' ব্যানারটি রিমুভ করতে চান?`)) {
-                            deleteBanner(b.id);
-                          }
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>রিমুভ করুন</span>
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingBanner(b);
+                            setEditBannerTitle(b.title);
+                            setEditBannerSubtitle(b.subtitle || '');
+                            setEditBannerImageUrl(b.imageUrl);
+                            setEditBannerLinkUrl(b.linkUrl || '');
+                            setEditBannerActionText(b.actionText || 'টাকা যোগ করুন');
+                            setEditBannerActionTab(b.actionTab || 'deposit');
+                            setEditBannerBadge(b.badge || '');
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>এডিট</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (confirm(`আপনি কি '${b.title}' ব্যানারটি রিমুভ করতে চান?`)) {
+                              deleteBanner(b.id);
+                            }
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>মুছুন</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1231,6 +1425,17 @@ export const AdminDashboard: React.FC = () => {
                               <CheckCircle2 className="w-3 h-3" />
                               <span>Delivered</span>
                             </button>
+                            <button
+                              onClick={() => {
+                                setCancellingOrder(ord);
+                                setCancelOrderReason('স্টক স্বল্পতা বা ইন-গেম সার্ভার সংযোগ ব্যর্থতার কারণে অর্ডারটি বাতিল ও ওয়ালেটে মূল্য রিফান্ড করা হলো।');
+                              }}
+                              className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs flex items-center gap-1 cursor-pointer shadow-xs"
+                              title="অর্ডার বাতিল ও রিফান্ড"
+                            >
+                              <XCircle className="w-3 h-3 text-rose-600" />
+                              <span>বাতিল ও রিফান্ড</span>
+                            </button>
                           </>
                         )}
 
@@ -1246,6 +1451,17 @@ export const AdminDashboard: React.FC = () => {
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               <span>Delivered করুন</span>
                             </button>
+                            <button
+                              onClick={() => {
+                                setCancellingOrder(ord);
+                                setCancelOrderReason('প্রসেসিং সমস্যাজনিত কারণে অর্ডারটি বাতিল ও ওয়ালেটে মূল্য রিফান্ড করা হলো।');
+                              }}
+                              className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs flex items-center gap-1 cursor-pointer shadow-xs"
+                              title="অর্ডার বাতিল ও রিফান্ড"
+                            >
+                              <XCircle className="w-3 h-3 text-rose-600" />
+                              <span>বাতিল ও রিফান্ড</span>
+                            </button>
                           </>
                         )}
 
@@ -1253,6 +1469,13 @@ export const AdminDashboard: React.FC = () => {
                           <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-950 border border-emerald-300 flex items-center gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
                             <span>Delivered সম্পন্ন</span>
+                          </span>
+                        )}
+
+                        {(ord.status === 'rejected' || ord.status === 'cancelled') && (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-950 border border-rose-300 flex items-center gap-1">
+                            <XCircle className="w-3.5 h-3.5 text-rose-700" />
+                            <span>বাতিল ও রিফান্ডেড (৳ {ord.price})</span>
                           </span>
                         )}
                       </>
@@ -1265,6 +1488,169 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 6: Users List & Account Ban Management */}
+        {currentAdminTab === 'users' && (
+          <div className="p-4 sm:p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base text-black flex items-center gap-2">
+                  <Users className="w-4 h-4 text-emerald-600" />
+                  <span>নিবন্ধিত ব্যবহারকারী তালিকা ও একাউন্ট ব্যান কন্ট্রোল</span>
+                </h3>
+                <p className="text-xs text-slate-800 font-medium">
+                  Firestore 'users' কালেকশনের সকল ইউজার তালিকা। এখান থেকে ইউজারকে সক্রিয় বা ব্যান করতে পারবেন।
+                </p>
+              </div>
+
+              {/* Status summary badges */}
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-300 text-xs font-bold text-slate-800">
+                  মোট: <strong>{allUsers.length}</strong>
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-300 text-xs font-bold text-emerald-950">
+                  সক্রিয়: <strong>{allUsers.filter((u) => u.status !== 'banned').length}</strong>
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-rose-50 border border-rose-300 text-xs font-bold text-rose-950">
+                  স্থগিত (Banned): <strong>{allUsers.filter((u) => u.status === 'banned').length}</strong>
+                </span>
+              </div>
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  placeholder="ইউজার খুঁজুন (নাম, ইমেইল, ফোন বা UID)..."
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-3 py-2 text-xs text-black focus:outline-none focus:border-black"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setUserStatusFilter('all')}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                    userStatusFilter === 'all'
+                      ? 'bg-black text-white border-black'
+                      : 'bg-white border-slate-300 text-black hover:bg-slate-100'
+                  }`}
+                >
+                  সব ({allUsers.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserStatusFilter('active')}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                    userStatusFilter === 'active'
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-white border-slate-300 text-black hover:bg-slate-100'
+                  }`}
+                >
+                  সক্রিয় ({allUsers.filter((u) => u.status !== 'banned').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserStatusFilter('banned')}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                    userStatusFilter === 'banned'
+                      ? 'bg-rose-600 text-white border-rose-600'
+                      : 'bg-white border-slate-300 text-black hover:bg-slate-100'
+                  }`}
+                >
+                  ব্যান ({allUsers.filter((u) => u.status === 'banned').length})
+                </button>
+              </div>
+            </div>
+
+            {/* Users Cards / Table */}
+            <div className="space-y-3">
+              {filteredUsers.length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-xl text-slate-600 text-xs">
+                  কোনো ইউজার পাওয়া যায়নি।
+                </div>
+              ) : (
+                filteredUsers.map((u) => {
+                  const isBanned = u.status === 'banned';
+                  return (
+                    <div
+                      key={u.id}
+                      className={`p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs shadow-xs transition-all ${
+                        isBanned ? 'bg-rose-50/40 border-rose-200' : 'bg-white border-slate-200'
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-sm text-black">{u.name}</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                              isBanned
+                                ? 'bg-rose-100 text-rose-900 border border-rose-300'
+                                : 'bg-emerald-100 text-emerald-950 border border-emerald-300'
+                            }`}
+                          >
+                            {isBanned ? 'স্থগিত (Banned)' : 'সক্রিয় (Active)'}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200">
+                            {u.role === 'admin' ? 'এডমিন (Admin)' : 'গ্রাহক'}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-slate-700 font-medium">
+                          <span>ইমেইল: <strong className="text-black">{u.email || 'N/A'}</strong></span>
+                          <span>মোবাইল: <strong className="text-black">{u.phone || 'N/A'}</strong></span>
+                          <span>
+                            UID:{' '}
+                            <code className="font-mono bg-slate-100 px-1 py-0.5 rounded text-black text-[11px]">
+                              {u.id}
+                            </code>
+                          </span>
+                          <span>যোগদান: <strong className="text-black">{u.joinedAt || '২০২৬'}</strong></span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200 justify-between md:justify-end">
+                        <div className="text-right">
+                          <span className="text-[10px] text-slate-600 block font-bold">ওয়ালেট ব্যালেন্স</span>
+                          <span className="text-base font-extrabold text-black font-sans">
+                            ৳ {typeof u.walletBalance === 'number' ? u.walletBalance.toFixed(2) : '0.00'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {/* Ban / Unban Toggle Button */}
+                          {isBanned ? (
+                            <button
+                              type="button"
+                              onClick={() => toggleUserBan(u.id, 'active')}
+                              className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                              <span>আনব্যান করুন (Unban)</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => toggleUserBan(u.id, 'banned')}
+                              className="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-extrabold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
+                            >
+                              <Ban className="w-3.5 h-3.5 text-rose-600" />
+                              <span>ব্যান করুন (Ban)</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         )}
@@ -2046,6 +2432,17 @@ export const AdminDashboard: React.FC = () => {
                 />
               </div>
 
+              <div>
+                <label className="text-slate-800 font-bold block mb-1">ঐচ্ছিক লিংক (Link URL)</label>
+                <input
+                  type="text"
+                  value={newBannerLinkUrl}
+                  onChange={(e) => setNewBannerLinkUrl(e.target.value)}
+                  placeholder="যেমন: https://... অথবা খালি রাখুন"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs font-mono"
+                />
+              </div>
+
               {/* Banner Image with Presets */}
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2 shadow-xs">
                 <div className="flex items-center justify-between">
@@ -2096,6 +2493,7 @@ export const AdminDashboard: React.FC = () => {
                     subtitle: newBannerSubtitle,
                     badge: newBannerBadge || 'স্পেশাল অফার',
                     imageUrl: newBannerImageUrl || '/src/assets/images/ff_friday_offer_1790099054219.jpg',
+                    linkUrl: newBannerLinkUrl.trim(),
                     actionTab: newBannerActionTab,
                     actionText: newBannerActionText || 'বিস্তারিত দেখুন',
                     isActive: true
@@ -2104,6 +2502,7 @@ export const AdminDashboard: React.FC = () => {
                   setShowAddBannerModal(false);
                   setNewBannerTitle('');
                   setNewBannerSubtitle('');
+                  setNewBannerLinkUrl('');
                 }}
                 className="flex-1 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold text-xs cursor-pointer shadow-xs"
               >
@@ -2114,6 +2513,472 @@ export const AdminDashboard: React.FC = () => {
                 className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 text-xs font-bold cursor-pointer"
               >
                 বাতিল
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Existing Banner Modal */}
+      {editingBanner && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white border border-slate-300 rounded-2xl p-5 space-y-4 animate-in fade-in shadow-2xl text-black max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="font-extrabold text-base text-black flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-emerald-600" />
+                <span>হোমপেজ ব্যানার সম্পাদনা (Edit Banner)</span>
+              </h3>
+              <button
+                onClick={() => setEditingBanner(null)}
+                className="text-xs text-black font-bold hover:bg-slate-200 px-2 py-1 bg-slate-100 border border-slate-300 rounded cursor-pointer"
+              >
+                বন্ধ
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="text-slate-800 font-bold block mb-1">ব্যানার শিরোনাম (Title) *</label>
+                <input
+                  type="text"
+                  value={editBannerTitle}
+                  onChange={(e) => setEditBannerTitle(e.target.value)}
+                  placeholder="ব্যানার শিরোনাম"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black font-bold shadow-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-800 font-bold block mb-1">সাবটাইটেল / বিবরণ</label>
+                <input
+                  type="text"
+                  value={editBannerSubtitle}
+                  onChange={(e) => setEditBannerSubtitle(e.target.value)}
+                  placeholder="ব্যানার সাবটাইটেল"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-800 font-bold block mb-1">ব্যাজ ট্যাগ</label>
+                  <input
+                    type="text"
+                    value={editBannerBadge}
+                    onChange={(e) => setEditBannerBadge(e.target.value)}
+                    placeholder="যেমন: স্পেশাল অফার"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-800 font-bold block mb-1">বাটন অ্যাকশন</label>
+                  <select
+                    value={editBannerActionTab}
+                    onChange={(e: any) => setEditBannerActionTab(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black font-semibold shadow-xs"
+                  >
+                    <option value="deposit">ডিপোজিট পেজে যাবে (টাকা যোগ)</option>
+                    <option value="orders">অর্ডার কিউতে যাবে</option>
+                    <option value="home">হোম প্রোডাক্টে স্ক্রল করবে</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-800 font-bold block mb-1">বাটন টেক্সট</label>
+                <input
+                  type="text"
+                  value={editBannerActionText}
+                  onChange={(e) => setEditBannerActionText(e.target.value)}
+                  placeholder="যেমন: টাকা যোগ করুন"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-800 font-bold block mb-1">ঐচ্ছিক লিংক (Link URL)</label>
+                <input
+                  type="text"
+                  value={editBannerLinkUrl}
+                  onChange={(e) => setEditBannerLinkUrl(e.target.value)}
+                  placeholder="যেমন: https://... অথবা খালি রাখুন"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs font-mono"
+                />
+              </div>
+
+              {/* Banner Image with Presets */}
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-black block">ব্যানার ব্যাকগ্রাউন্ড ছবি</span>
+                  <img
+                    src={editBannerImageUrl || '/dc_logo.jpg'}
+                    alt="Preview"
+                    className="w-12 h-7 rounded object-cover border border-slate-300"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={editBannerImageUrl}
+                  onChange={(e) => setEditBannerImageUrl(e.target.value)}
+                  placeholder="ছবির লিংক (URL)"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-black"
+                />
+
+                <span className="text-[10px] text-slate-700 font-bold block">বা প্রিসেট ছবি নির্বাচন করুন:</span>
+                <div className="grid grid-cols-3 gap-1.5 max-h-28 overflow-y-auto">
+                  {PRESET_PRODUCT_IMAGES.map((p, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setEditBannerImageUrl(p.url)}
+                      className={`p-1 rounded-lg border text-left flex items-center gap-1.5 cursor-pointer ${
+                        editBannerImageUrl === p.url ? 'border-black bg-white ring-1 ring-black' : 'border-slate-300 bg-white'
+                      }`}
+                    >
+                      <img src={p.url} alt="" className="w-6 h-6 rounded object-cover" />
+                      <span className="text-[9px] font-bold text-black truncate">{p.label.split(' ')[0]}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => {
+                  if (!editBannerTitle) {
+                    showToast('ব্যানারের শিরোনাম প্রদান করুন।', 'error');
+                    return;
+                  }
+                  updateBanner({
+                    ...editingBanner,
+                    title: editBannerTitle,
+                    subtitle: editBannerSubtitle,
+                    badge: editBannerBadge,
+                    imageUrl: editBannerImageUrl || editingBanner.imageUrl,
+                    linkUrl: editBannerLinkUrl.trim(),
+                    actionText: editBannerActionText,
+                    actionTab: editBannerActionTab
+                  });
+                  setEditingBanner(null);
+                  showToast('ব্যানার সফলভাবে আপডেট করা হয়েছে!', 'success');
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold text-xs cursor-pointer shadow-xs"
+              >
+                পরিবর্তন সংরক্ষণ করুন
+              </button>
+              <button
+                onClick={() => setEditingBanner(null)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 text-xs font-bold cursor-pointer"
+              >
+                বাতিল
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Manual Deposit Modal */}
+      {showManualDepositModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white border border-slate-300 rounded-2xl p-5 space-y-4 animate-in fade-in shadow-2xl text-black max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="font-extrabold text-base text-black flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-purple-600" />
+                <span>ম্যানুয়াল ডিপোজিট যোগ করুন (Add Manual Deposit)</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowManualDepositModal(false);
+                  setManualDepositUserId('');
+                  setUserDropdownSearch('');
+                }}
+                className="text-xs text-black font-bold hover:bg-slate-200 px-2 py-1 bg-slate-100 border border-slate-300 rounded cursor-pointer"
+              >
+                বন্ধ
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* User Search & Selection */}
+              <div className="space-y-1.5">
+                <label className="text-slate-800 font-bold block">
+                  ইউজার খুঁজুন (ইমেইল / নাম / ফোন নম্বর) *
+                </label>
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={userDropdownSearch}
+                    onChange={(e) => {
+                      setUserDropdownSearch(e.target.value);
+                      if (!e.target.value) setManualDepositUserId('');
+                    }}
+                    placeholder="ইউজারের ইমেইল বা নাম লিখুন..."
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-3 py-2 text-xs text-black font-medium focus:outline-none focus:border-black"
+                  />
+                </div>
+
+                {/* Filtered user matches dropdown list */}
+                {userDropdownSearch && (
+                  <div className="max-h-36 overflow-y-auto border border-slate-200 rounded-xl bg-slate-50/70 divide-y divide-slate-100 mt-1">
+                    {allUsers
+                      .filter((u) => {
+                        const q = userDropdownSearch.toLowerCase();
+                        return (
+                          (u.email && u.email.toLowerCase().includes(q)) ||
+                          u.name.toLowerCase().includes(q) ||
+                          u.phone.includes(q) ||
+                          u.id.toLowerCase().includes(q)
+                        );
+                      })
+                      .slice(0, 8)
+                      .map((u) => (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => {
+                            setManualDepositUserId(u.id);
+                            setUserDropdownSearch(u.email || u.name);
+                          }}
+                          className={`w-full text-left p-2 hover:bg-white flex items-center justify-between transition-colors cursor-pointer ${
+                            manualDepositUserId === u.id ? 'bg-purple-50 text-purple-950 font-bold' : 'text-slate-800'
+                          }`}
+                        >
+                          <div>
+                            <div className="font-extrabold text-black">{u.name}</div>
+                            <div className="text-[10px] text-slate-500">{u.email || u.phone}</div>
+                          </div>
+                          <span className="text-[11px] font-sans font-extrabold text-black">
+                            ৳ {typeof u.walletBalance === 'number' ? u.walletBalance.toFixed(2) : '0.00'}
+                          </span>
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Selected User Info Card */}
+              {(() => {
+                const targetU = allUsers.find(
+                  (u) => u.id === manualDepositUserId || (u.email && u.email.toLowerCase() === userDropdownSearch.toLowerCase().trim())
+                );
+                if (!targetU) return null;
+                const depositNum = parseFloat(manualDepositAmount) || 0;
+                const newBal = (targetU.walletBalance || 0) + depositNum;
+
+                return (
+                  <div className="p-3.5 rounded-xl bg-purple-50/50 border border-purple-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-purple-950">নির্বাচিত গ্রাহক:</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-purple-100 text-purple-900 border border-purple-300">
+                        {targetU.status === 'banned' ? 'স্থগিত (Banned)' : 'সক্রিয়'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700">
+                      <div>নাম: <strong className="text-black">{targetU.name}</strong></div>
+                      <div>ইমেইল: <strong className="text-black">{targetU.email || 'N/A'}</strong></div>
+                      <div>বর্তমান ব্যালেন্স: <strong className="text-black font-sans">৳ {targetU.walletBalance.toFixed(2)}</strong></div>
+                      <div>জমার পর ব্যালেন্স: <strong className="text-emerald-700 font-sans font-extrabold">৳ {newBal.toFixed(2)}</strong></div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Deposit Amount Input & Presets */}
+              <div className="space-y-1.5">
+                <label className="text-slate-800 font-bold block">
+                  জমার পরিমাণ (Amount in BDT) *
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[50, 100, 200, 500, 1000, 2000].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setManualDepositAmount(amt.toString())}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                        manualDepositAmount === amt.toString()
+                          ? 'bg-purple-700 text-white border-purple-700'
+                          : 'bg-white border-slate-300 text-black hover:bg-slate-100'
+                      }`}
+                    >
+                      ৳ {amt}
+                    </button>
+                  ))}
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">৳</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={manualDepositAmount}
+                    onChange={(e) => setManualDepositAmount(e.target.value)}
+                    placeholder="যেমন: ১০০"
+                    className="w-full bg-white border border-slate-300 rounded-xl pl-7 pr-3 py-2 text-xs text-black font-bold focus:outline-none focus:border-black"
+                  />
+                </div>
+              </div>
+
+              {/* Note / Reason */}
+              <div className="space-y-1.5">
+                <label className="text-slate-800 font-bold block">
+                  রেফারেন্স / নোট (ঐচ্ছিক)
+                </label>
+                <input
+                  type="text"
+                  value={manualDepositNote}
+                  onChange={(e) => setManualDepositNote(e.target.value)}
+                  placeholder="যেমন: সরাসরি নগদ ক্যাশ রিসিভ, বা এডমিন বোনাস"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-black shadow-xs focus:outline-none focus:border-black"
+                />
+              </div>
+
+              {/* Transaction Guarantee Badge */}
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-700 flex items-start gap-2">
+                <ShieldAlert className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Firestore runTransaction:</strong> ইউজারের ওয়ালেট ব্যালেন্স বৃদ্ধি এবং approved স্ট্যাটাসের ডিপোজিট রেকর্ড (method: 'manual') একই পারমাণবিক ট্রানজেকশনে সংরক্ষিত হবে।
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                disabled={isSubmittingManualDeposit || !manualDepositUserId || Number(manualDepositAmount) <= 0}
+                onClick={async () => {
+                  if (!manualDepositUserId) {
+                    showToast('অনুগ্রহ করে গ্রাহক নির্বাচন করুন।', 'error');
+                    return;
+                  }
+                  const num = parseFloat(manualDepositAmount);
+                  if (isNaN(num) || num <= 0) {
+                    showToast('সঠিক টাকার পরিমাণ লিখুন।', 'error');
+                    return;
+                  }
+
+                  setIsSubmittingManualDeposit(true);
+                  const success = await addManualDeposit(manualDepositUserId, num, manualDepositNote);
+                  setIsSubmittingManualDeposit(false);
+
+                  if (success) {
+                    setShowManualDepositModal(false);
+                    setManualDepositUserId('');
+                    setManualDepositAmount('100');
+                    setManualDepositNote('');
+                    setUserDropdownSearch('');
+                  }
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+              >
+                {isSubmittingManualDeposit ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>প্রসেসিং হচ্ছে...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>সরাসরি ডিপোজিট সম্পন্ন করুন</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowManualDepositModal(false);
+                  setManualDepositUserId('');
+                  setUserDropdownSearch('');
+                }}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 text-xs font-bold cursor-pointer"
+              >
+                বাতিল
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Order with Auto-Refund Modal */}
+      {cancellingOrder && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white border border-slate-300 rounded-2xl p-5 space-y-4 animate-in fade-in shadow-2xl text-black max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="font-extrabold text-base text-rose-700 flex items-center gap-2">
+                <XCircle className="w-5 h-5 text-rose-600" />
+                <span>অর্ডার বাতিল ও স্বয়ংক্রিয় রিফান্ড (Cancel & Auto-Refund)</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setCancellingOrder(null)}
+                className="text-xs text-black font-bold hover:bg-slate-200 px-2 py-1 bg-slate-100 border border-slate-300 rounded cursor-pointer"
+              >
+                বন্ধ
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              {/* Order Info Card */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-extrabold text-black text-sm">#{cancellingOrder.id}</span>
+                  <span className="text-base font-black text-rose-600 font-sans">
+                    ৳ {cancellingOrder.price}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-slate-700">
+                  <div>পণ্য: <strong className="text-black">{cancellingOrder.productTitle}</strong></div>
+                  <div>প্যাকেজ: <strong className="text-black">{cancellingOrder.packageName}</strong></div>
+                  <div>গ্রাহক: <strong className="text-black">{cancellingOrder.userName}</strong></div>
+                  <div>Player ID (UID): <strong className="text-black font-mono">{cancellingOrder.playerId}</strong></div>
+                </div>
+              </div>
+
+              {/* Refund Notice */}
+              <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 space-y-1.5 text-rose-950">
+                <div className="flex items-center gap-1.5 font-extrabold text-xs">
+                  <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>অটো-রিফান্ড প্রতিশ্রুতি (Firestore runTransaction):</span>
+                </div>
+                <p className="text-[11px] leading-relaxed">
+                  অর্ডারটি বাতিল করলে <strong>৳ {cancellingOrder.price}</strong> সরাসরি গ্রাহক <strong>{cancellingOrder.userName}</strong>-এর ওয়ালেটে রিফান্ড করা হবে এবং ডিপোজিট হিস্ট্রিতে <strong>'Refund'</strong> লেবেলযুক্ত একটি অনুমোদিত রেকর্ড তৈরি হবে।
+                </p>
+              </div>
+
+              {/* Reason / Note Textarea */}
+              <div className="space-y-1.5">
+                <label className="text-slate-800 font-bold block">
+                  বাতিলের কারণ (গ্রাহকের কাছে প্রদর্শিত হবে):
+                </label>
+                <textarea
+                  value={cancelOrderReason}
+                  onChange={(e) => setCancelOrderReason(e.target.value)}
+                  rows={2}
+                  className="w-full bg-white border border-slate-300 rounded-xl p-3 text-xs text-black font-medium focus:outline-none focus:border-black"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={async () => {
+                  await updateOrderStatus(cancellingOrder.id, 'rejected', cancelOrderReason);
+                  setCancellingOrder(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+              >
+                <XCircle className="w-4 h-4" />
+                <span>হ্যাঁ, বাতিল ও রিফান্ড সম্পন্ন করুন</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCancellingOrder(null)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 text-xs font-bold cursor-pointer"
+              >
+                ফিরে যান
               </button>
             </div>
           </div>
