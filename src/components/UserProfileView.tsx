@@ -5,9 +5,12 @@ import {
   User as UserIcon, Wallet, PlusCircle, 
   ShoppingBag, CheckCircle2, Clock, ShieldCheck, 
   Copy, Check, Edit3, Save, X, RefreshCw, 
-  Gamepad2, ChevronRight, Phone, Mail, Calendar, MessageCircle, AlertCircle
+  Gamepad2, ChevronRight, Phone, Mail, Calendar, MessageCircle, AlertCircle,
+  Lock, KeyRound, Eye, EyeOff, Loader2
 } from 'lucide-react';
 import { SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from '../data/initialData';
+import { auth } from '../firebase';
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 
 export const UserProfileView: React.FC = () => {
   const { 
@@ -29,6 +32,17 @@ export const UserProfileView: React.FC = () => {
   const [editPhone, setEditPhone] = useState(currentUser?.phone || '');
   const [editEmail, setEditEmail] = useState(currentUser?.email || '');
   const [editGameUid, setEditGameUid] = useState(currentUser?.savedGameUid || '');
+
+  // Password Change State
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -99,6 +113,72 @@ export const UserProfileView: React.FC = () => {
       savedGameUid: editGameUid.trim()
     });
     setIsEditingProfile(false);
+  };
+
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+
+    const user = auth.currentUser;
+    const userEmail = user?.email || currentUser?.email;
+
+    if (!user || !userEmail) {
+      setPasswordError('লগইন সেশন পাওয়া যায়নি। অনুগ্রহ করে পুনরায় লগইন করুন।');
+      return;
+    }
+
+    if (!currentPassword) {
+      setPasswordError('বর্তমান পাসওয়ার্ড লিখুন');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError('নতুন পাসওয়ার্ড কমপক্ষে ৬ ক্যারেক্টার হতে হবে');
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError('পাসওয়ার্ড দুটো মিলছে না');
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      // 1. Re-authenticate the user using Firebase's reauthenticateWithCredential
+      try {
+        const credential = EmailAuthProvider.credential(userEmail, currentPassword);
+        await reauthenticateWithCredential(user, credential);
+      } catch (reauthErr: any) {
+        console.warn('Firebase reauthentication failed:', reauthErr);
+        setPasswordError('বর্তমান পাসওয়ার্ড সঠিক নয়');
+        setIsChangingPassword(false);
+        return;
+      }
+
+      // 2. Call Firebase's updatePassword with new password
+      await updatePassword(user, newPassword);
+
+      showToast('পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে', 'success');
+      setIsPasswordModalOpen(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setPasswordError('');
+    } catch (err: any) {
+      console.error('Firebase password update error:', err);
+      let msg = 'পাসওয়ার্ড পরিবর্তন করা সম্ভব হয়নি। আবার চেষ্টা করুন।';
+      if (err?.code === 'auth/weak-password') {
+        msg = 'পাসওয়ার্ড খুব দুর্বল, কমপক্ষে ৬ ক্যারেক্টারের শক্তিশালী পাসওয়ার্ড দিন।';
+      } else if (err?.code === 'auth/requires-recent-login') {
+        msg = 'নিরাপত্তার স্বার্থে অনুগ্রহ করে অ্যাকাউন্ট থেকে লগআউট করে আবার লগইন করুন।';
+      } else if (err?.message) {
+        msg = err.message;
+      }
+      setPasswordError(msg);
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   const handleTrackOrder = (orderId: string) => {
@@ -197,6 +277,24 @@ export const UserProfileView: React.FC = () => {
             >
               <Edit3 className="w-3.5 h-3.5 text-slate-700" />
               <span>প্রোফাইল পরিবর্তন</span>
+            </button>
+
+            <button
+              id="profile-change-password-trigger-btn"
+              onClick={() => {
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmNewPassword('');
+                setPasswordError('');
+                setShowCurrentPass(false);
+                setShowNewPass(false);
+                setShowConfirmPass(false);
+                setIsPasswordModalOpen(true);
+              }}
+              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-black border border-slate-300 font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-slate-700" />
+              <span>পাসওয়ার্ড পরিবর্তন করুন</span>
             </button>
 
             {currentUser.role === 'admin' && (
@@ -717,6 +815,28 @@ export const UserProfileView: React.FC = () => {
                 </span>
               </div>
 
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-[11px] text-slate-500 font-medium">নিরাপত্তা:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingProfile(false);
+                    setCurrentPassword('');
+                    setNewPassword('');
+                    setConfirmNewPassword('');
+                    setPasswordError('');
+                    setShowCurrentPass(false);
+                    setShowNewPass(false);
+                    setShowConfirmPass(false);
+                    setIsPasswordModalOpen(true);
+                  }}
+                  className="text-xs text-black hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Lock className="w-3.5 h-3.5 text-slate-600" />
+                  <span>পাসওয়ার্ড পরিবর্তন করুন</span>
+                </button>
+              </div>
+
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
                 <button
                   type="button"
@@ -731,6 +851,144 @@ export const UserProfileView: React.FC = () => {
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>সংরক্ষণ করুন</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl border border-slate-300 max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 text-black animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2">
+                <Lock className="w-5 h-5 text-black" />
+                <h3 className="font-extrabold text-base text-black">পাসওয়ার্ড পরিবর্তন করুন</h3>
+              </div>
+              <button
+                id="close-change-password-modal-btn"
+                type="button"
+                onClick={() => {
+                  if (!isChangingPassword) setIsPasswordModalOpen(false);
+                }}
+                disabled={isChangingPassword}
+                className="p-1 text-slate-500 hover:text-black rounded-lg cursor-pointer disabled:opacity-40"
+                title="বন্ধ করুন"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {passwordError && (
+              <div id="change-password-error-alert" className="p-3 rounded-xl bg-rose-50 border border-rose-300 text-xs text-rose-950 flex items-start gap-2 shadow-xs">
+                <AlertCircle className="w-4 h-4 text-rose-700 shrink-0 mt-0.5" />
+                <span className="font-bold leading-relaxed">{passwordError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleChangePasswordSubmit} className="space-y-3.5 text-xs">
+              <div className="space-y-1">
+                <label className="font-bold text-black block">বর্তমান পাসওয়ার্ড</label>
+                <div className="relative">
+                  <input
+                    id="current-password-input"
+                    type={showCurrentPass ? 'text' : 'password'}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="আপনার বর্তমান পাসওয়ার্ড লিখুন"
+                    className="w-full px-3 py-2.5 pr-10 bg-white border border-slate-300 rounded-xl text-xs text-black focus:outline-none focus:ring-1 focus:ring-black"
+                    required
+                    disabled={isChangingPassword}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPass(!showCurrentPass)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-black p-1 cursor-pointer"
+                    title={showCurrentPass ? 'লুকান' : 'দেখান'}
+                  >
+                    {showCurrentPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-black block">নতুন পাসওয়ার্ড (কমপক্ষে ৬ ক্যারেক্টার)</label>
+                <div className="relative">
+                  <input
+                    id="new-password-input"
+                    type={showNewPass ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="কমপক্ষে ৬ ক্যারেক্টারের নতুন পাসওয়ার্ড"
+                    className="w-full px-3 py-2.5 pr-10 bg-white border border-slate-300 rounded-xl text-xs text-black focus:outline-none focus:ring-1 focus:ring-black"
+                    required
+                    minLength={6}
+                    disabled={isChangingPassword}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPass(!showNewPass)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-black p-1 cursor-pointer"
+                    title={showNewPass ? 'লুকান' : 'দেখান'}
+                  >
+                    {showNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-black block">নতুন পাসওয়ার্ড নিশ্চিত করুন</label>
+                <div className="relative">
+                  <input
+                    id="confirm-new-password-input"
+                    type={showConfirmPass ? 'text' : 'password'}
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    placeholder="নতুন পাসওয়ার্ডটি পুনরায় লিখুন"
+                    className="w-full px-3 py-2.5 pr-10 bg-white border border-slate-300 rounded-xl text-xs text-black focus:outline-none focus:ring-1 focus:ring-black"
+                    required
+                    minLength={6}
+                    disabled={isChangingPassword}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPass(!showConfirmPass)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-black p-1 cursor-pointer"
+                    title={showConfirmPass ? 'লুকান' : 'দেখান'}
+                  >
+                    {showConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  disabled={isChangingPassword}
+                  onClick={() => setIsPasswordModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-black font-bold cursor-pointer disabled:opacity-40"
+                >
+                  বাতিল
+                </button>
+                <button
+                  id="submit-change-password-btn"
+                  type="submit"
+                  disabled={isChangingPassword}
+                  className="px-5 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {isChangingPassword ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>পরিবর্তন হচ্ছে...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>পাসওয়ার্ড পরিবর্তন করুন</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

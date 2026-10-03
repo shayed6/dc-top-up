@@ -4,7 +4,7 @@ import { TopUpProduct, TopUpPackage } from '../types';
 import { SafeImage } from './SafeImage';
 import { 
   X, AlertTriangle, ShieldCheck, Zap, Wallet, 
-  PlusCircle, HelpCircle, CheckCircle2, Gift, Sparkles, Trophy, ShieldAlert
+  PlusCircle, HelpCircle, CheckCircle2, Gift, Sparkles, Trophy, ShieldAlert, Loader2
 } from 'lucide-react';
 
 interface PurchaseModalProps {
@@ -468,7 +468,12 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
                 onClick={handleConfirmPurchase}
                 className="w-full py-3.5 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold text-sm shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed transform active:scale-[0.99] cursor-pointer"
               >
-                {isBanned ? (
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                    <span>অর্ডার প্রক্রিয়া চলছে (টাকা কাটা হচ্ছে)...</span>
+                  </>
+                ) : isBanned ? (
                   <>
                     <ShieldAlert className="w-4 h-4 text-rose-400" />
                     <span>অ্যাকাউন্ট সাময়িকভাবে বন্ধ রয়েছে (অর্ডার নিষ্ক্রিয়)</span>

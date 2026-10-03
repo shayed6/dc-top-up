@@ -13,7 +13,7 @@ export const AuthSection: React.FC<AuthSectionProps> = ({
   onSuccess,
   isModal = false
 }) => {
-  const { loginWithGoogle, signupWithEmail, loginWithEmail, setActiveTab } = useApp();
+  const { signupWithEmail, loginWithEmail, setActiveTab } = useApp();
 
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
 
@@ -27,34 +27,6 @@ export const AuthSection: React.FC<AuthSectionProps> = ({
   const [statusMsg, setStatusMsg] = useState('');
   const [statusType, setStatusType] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [isProcessing, setIsProcessing] = useState(false);
-
-  // Google Sign-in Handler (Real Firebase Auth)
-  const handleGoogleAuth = async () => {
-    setStatusType('loading');
-    setStatusMsg('গুগল সাইন-ইন প্রসেস হচ্ছে...');
-    setIsProcessing(true);
-
-    try {
-      const res = await loginWithGoogle();
-      if (res && res.success) {
-        setStatusType('success');
-        setStatusMsg('লগইন সফল! রিডাইরেক্ট হচ্ছে...');
-        setTimeout(() => {
-          if (onSuccess) onSuccess();
-          else setActiveTab('deposit');
-        }, 500);
-      } else {
-        setStatusType('error');
-        setStatusMsg(res?.error || 'গুগল সাইন-ইন সম্পন্ন হয়নি।');
-      }
-    } catch (err: any) {
-      console.warn('handleGoogleAuth note:', err?.message || err);
-      setStatusType('error');
-      setStatusMsg('গুগল সাইন-ইন সম্পন্ন হয়নি। অনুগ্রহ করে নিচের Email ও Password ফর্ম ব্যবহার করুন।');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   // Email / Password Submit Handler (Real Firebase Auth)
   const handleEmailFormSubmit = async (e: React.FormEvent) => {
@@ -227,35 +199,11 @@ export const AuthSection: React.FC<AuthSectionProps> = ({
 
           <p className="text-[#6B6F8C] font-inter text-[14px] mb-6">
             {mode === 'login'
-              ? 'Google একাউন্ট দিয়ে সরাসরি লগইন করুন অথবা আপনার ইমেইল ও পাসওয়ার্ড লিখুন।'
-              : 'নাম, ইমেইল ও পাসওয়ার্ড দিয়ে একাউন্ট তৈরি করুন অথবা Google দিয়ে সাইনআপ করুন।'}
+              ? 'আপনার ইমেইল ও পাসওয়ার্ড দিয়ে একাউন্টে প্রবেশ করুন।'
+              : 'নাম, ইমেইল ও পাসওয়ার্ড দিয়ে নতুন একাউন্ট তৈরি করুন।'}
           </p>
 
           <div className="space-y-4">
-            {/* Google Button */}
-            <button
-              id="googleAuthBtn"
-              type="button"
-              disabled={isProcessing}
-              onClick={handleGoogleAuth}
-              className="w-full flex items-center justify-center gap-3 bg-[#14162E] hover:bg-[#202347] active:scale-[0.99] text-white rounded-[10px] py-3.5 px-4 font-inter font-semibold text-[14.5px] cursor-pointer transition-all shadow-sm hover:shadow-[0_10px_24px_-12px_rgba(224,165,0,0.35)] disabled:opacity-70"
-            >
-              <svg className="w-[18px] h-[18px]" viewBox="0 0 48 48">
-                <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 6 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.4-.4-3.5z" />
-                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 6 29.5 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z" />
-                <path fill="#4CAF50" d="M24 44c5.4 0 10.3-1.8 14-4.9l-6.5-5.5c-2 1.4-4.6 2.3-7.5 2.3-5.2 0-9.6-3.3-11.2-7.9l-6.5 5C9.6 39.6 16.3 44 24 44z" />
-                <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.5 5.5C41.1 35.9 44 30.4 44 24c0-1.2-.1-2.4-.4-3.5z" />
-              </svg>
-              <span>{mode === 'login' ? 'Sign in with Google' : 'Sign up with Google'}</span>
-            </button>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3 my-4 text-[#6B6F8C] text-[12.5px] font-inter">
-              <span className="flex-1 h-px bg-[#14162E]/10" />
-              <span>অথবা ইমেইল দিয়ে {mode === 'login' ? 'লগইন' : 'রেজিস্ট্রেশন'}</span>
-              <span className="flex-1 h-px bg-[#14162E]/10" />
-            </div>
-
             {/* Email / Password Form */}
             <form onSubmit={handleEmailFormSubmit} className="space-y-3.5">
               {mode === 'signup' && (

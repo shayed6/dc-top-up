@@ -169,17 +169,30 @@ const MainLayout: React.FC = () => {
               <Zap className="w-4 h-4 text-amber-600" />
               <span>অটোমেটেড দ্রুত ডেলিভারি</span>
             </span>
-            <a
-              id="footer-whatsapp-helpline"
-              href={SUPPORT_WHATSAPP_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 hover:text-emerald-700 font-bold transition-colors cursor-pointer"
-              title={`২৪/৭ কাস্টমার সাপোর্ট হেল্পলাইন - WhatsApp: ${SUPPORT_PHONE_FORMATTED}`}
-            >
-              <Headphones className="w-4 h-4 text-emerald-600" />
-              <span>২৪/৭ হেল্পলাইন ({SUPPORT_PHONE_FORMATTED})</span>
-            </a>
+            <div className="flex items-center flex-wrap gap-2 text-black font-medium">
+              <a
+                id="footer-whatsapp-helpline"
+                href={SUPPORT_WHATSAPP_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 hover:text-emerald-700 font-bold transition-colors cursor-pointer"
+                title={`২৪/৭ কাস্টমার সাপোর্ট হেল্পলাইন - WhatsApp: ${SUPPORT_PHONE_FORMATTED}`}
+              >
+                <Headphones className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>২৪/৭ হেল্পলাইন ({SUPPORT_PHONE_FORMATTED})</span>
+              </a>
+              <span className="text-slate-500 text-[11px] sm:text-[12px] font-normal whitespace-nowrap">
+                <span>⚡ by </span>
+                <a
+                  href="https://t.me/gz_holdings"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-slate-800 hover:underline transition-colors"
+                >
+                  Gz Holdings
+                </a>
+              </span>
+            </div>
           </div>
 
           <div className="text-[11px] text-black text-center md:text-right font-medium">

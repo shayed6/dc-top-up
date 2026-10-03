@@ -194,7 +194,7 @@ export const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
             {isFailed && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-100 text-rose-950 border border-rose-300 text-xs font-extrabold shadow-xs">
                 <XCircle className="w-3.5 h-3.5 text-rose-700" />
-                <span>Failed (ব্যর্থ)</span>
+                <span>{activeOrder.refunded ? 'বাতিল ও রিফান্ড সম্পন্ন' : 'Failed (ব্যর্থ)'}</span>
               </span>
             )}
           </div>
@@ -205,7 +205,7 @@ export const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
           <div className="flex items-center justify-between text-xs font-bold text-slate-700 px-1">
             <span>অগ্রগতি (Progression Timeline)</span>
             <span>
-              {isDelivered ? '১০০% সম্পন্ন' : isProcessing ? '৬৬% প্রসেসিং' : isPending ? '৩৩% গৃহীত' : 'ব্যর্থ'}
+              {isDelivered ? '১০০% সম্পন্ন' : isProcessing ? '৬৬% প্রসেসিং' : isPending ? '৩৩% গৃহীত' : activeOrder.refunded ? 'বাতিল ও রিফান্ডেড' : 'ব্যর্থ'}
             </span>
           </div>
 
@@ -380,7 +380,9 @@ export const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
           <div className="p-4 rounded-xl bg-rose-50 border border-rose-300 text-xs text-rose-950 flex items-start gap-2.5">
             <AlertCircle className="w-4 h-4 text-rose-700 shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <span className="font-extrabold text-rose-900 block">ডেলিভারি প্রক্রিয়ায় সমস্যা দেখা দিয়েছে</span>
+              <span className="font-extrabold text-rose-900 block">
+                {activeOrder.refunded ? `অর্ডার বাতিল — সম্পূর্ণ মূল্য (৳ ${activeOrder.price}) ওয়ালেটে রিফান্ড করা হয়েছে` : 'ডেলিভারি প্রক্রিয়ায় সমস্যা দেখা দিয়েছে'}
+              </span>
               <p className="font-medium text-slate-800">
                 {activeOrder.notes || 'সার্ভার থেকে গেম আইডি বা লিংকটি বৈধভাবে সনাক্ত করা যায়নি। হেল্পলাইনে যোগাযোগ করুন।'}
               </p>

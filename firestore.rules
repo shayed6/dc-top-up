@@ -52,10 +52,19 @@ service cloud.firestore {
 
       // Updates:
       // - Admin can update any field (including walletBalance, role, and status)
-      // - Non-admin user cannot change role, walletBalance, or status
+      // - Non-admin customer can update profile fields, and may ONLY decrement walletBalance (down to >= 0) to pay for an order
+      // - Non-admin customer can NEVER increment balance, and can NEVER modify role or status
       allow update: if isAdmin() || (
         isOwner(userId) &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'walletBalance', 'status'])
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status']) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['walletBalance']) ||
+          (
+            request.resource.data.walletBalance is number &&
+            request.resource.data.walletBalance >= 0 &&
+            request.resource.data.walletBalance <= resource.data.walletBalance
+          )
+        )
       );
 
       allow delete: if isAdmin();

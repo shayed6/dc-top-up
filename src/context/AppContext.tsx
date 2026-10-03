@@ -1,10 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { User, DepositRequest, Order, OrderStatus, TopUpProduct, TopUpPackage, PaymentMethodType, AppNotice, HomeBanner } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_NOTICE, INITIAL_BANNERS } from '../data/initialData';
-import { auth, db, googleProvider } from '../firebase';
+import { auth, db } from '../firebase';
 import { 
   onAuthStateChanged, 
-  signInWithPopup, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   updateProfile, 
@@ -68,7 +67,6 @@ interface AppContextType {
   addManualDeposit: (userId: string, amount: number, note?: string) => Promise<boolean>;
 
   // Auth
-  loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   signupWithEmail: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   loginWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   loginWithPhone: (phone: string, name?: string) => void;
@@ -158,6 +156,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // In-flight operation deduplication to guarantee idempotency and prevent double-clicks
   const inFlightDepositsRef = useRef<Set<string>>(new Set());
   const inFlightOrdersRef = useRef<Set<string>>(new Set());
+  const inFlightPurchasesRef = useRef<boolean>(false);
 
   useEffect(() => {
     localStorage.setItem('dc_products', JSON.stringify(products));
@@ -506,53 +505,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const u = result.user;
-
-      const userRef = doc(db, 'users', u.uid);
-      const snap = await getDoc(userRef);
-      if (!snap.exists()) {
-        const initialDoc: User = {
-          id: u.uid,
-          name: u.displayName || 'গুগল গেমার',
-          email: u.email || '',
-          photoURL: u.photoURL || '',
-          phone: u.phoneNumber || '',
-          walletBalance: 0.00,
-          role: 'customer',
-          status: 'active',
-          joinedAt: new Date().toISOString().split('T')[0]
-        };
-        await setDoc(userRef, {
-          ...initialDoc,
-          createdAt: serverTimestamp()
-        }, { merge: true });
-      } else {
-        await setDoc(userRef, {
-          lastLoginAt: serverTimestamp(),
-          photoURL: u.photoURL || snap.data()?.photoURL || ''
-        }, { merge: true });
-      }
-
-      showToast(`স্বাগতম, ${u.displayName || 'ইউজার'}! Google অ্যাকাউন্ট দিয়ে লগইন সফল হয়েছে।`, 'success');
-      return { success: true };
-    } catch (popupErr: any) {
-      console.warn('Google popup sign-in note:', popupErr?.code || popupErr);
-      let msg = 'Google সাইন-ইন সম্পন্ন করা সম্ভব হয়নি। আবার চেষ্টা করুন।';
-      if (popupErr?.code === 'auth/popup-closed-by-user') {
-        msg = 'গুগল সাইন-ইন উইন্ডো বন্ধ করা হয়েছে।';
-      } else if (popupErr?.code === 'auth/cancelled-popup-request') {
-        msg = 'আগের সাইন-ইন রিকোয়েস্ট বাতিল হয়েছে।';
-      } else if (popupErr?.code === 'auth/unauthorized-domain') {
-        msg = 'এই ডোমেইনটি Firebase Console-এ অথোরাইজড নয়। অনুগ্রহ করে সরাসরি নিচের Email ও Password দিয়ে সাইন-আপ বা লগইন করুন।';
-      }
-      showToast(msg, 'error');
-      return { success: false, error: msg };
-    }
-  };
-
   const signupWithEmail = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     if (!name.trim()) return { success: false, error: 'আপনার পুরো নাম লিখুন।' };
     if (!email.trim() || !email.includes('@')) return { success: false, error: 'সঠিক ইমেইল ঠিকানা দিন।' };
@@ -740,82 +692,110 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, error: 'অর্ডার করতে অনুগ্রহ করে লগইন করুন।' };
     }
 
-    if (currentUser.status === 'banned') {
-      showToast('আপনার অ্যাকাউন্টটি সাময়িকভাবে স্থগিত (Banned) করা হয়েছে। নতুন অর্ডার করা সম্ভব নয়।', 'error');
-      return { success: false, error: 'অ্যাকাউন্ট স্থগিত (Banned) রয়েছে।' };
+    if (inFlightPurchasesRef.current) {
+      return { success: false, error: 'অর্ডার প্রক্রিয়া চলছে, অনুগ্রহ করে অপেক্ষা করুন...' };
     }
-
-    const product = products.find((p) => p.id === productId);
-    if (!product) return { success: false, error: 'পণ্য খুঁজে পাওয়া যায়নি।' };
-
-    if (product.isOutOfStock) {
-      return { success: false, error: 'দুঃখিত, এই প্রোডাক্টটি বর্তমানে স্টক আউট (Out of Stock)।' };
-    }
-
-    const pkg = product.packages.find((p) => p.id === packageId);
-    if (!pkg) return { success: false, error: 'প্যাকেজ খুঁজে পাওয়া যায়নি।' };
-
-    if (pkg.isOutOfStock) {
-      return { success: false, error: `দুঃখিত, '${pkg.name}' প্যাকেজটি বর্তমানে স্টক আউট (Out of Stock)।` };
-    }
-
-    if (currentUser.walletBalance < pkg.price) {
-      const shortage = pkg.price - currentUser.walletBalance;
-      return {
-        success: false,
-        error: `অপর্যাপ্ত ওয়ালেট ব্যালেন্স! আপনার ঘাটতি আছে ৳ ${shortage.toFixed(2)}। অনুগ্রহ করে টাকা যোগ করুন।`
-      };
-    }
-
-    const updatedBalance = Number((currentUser.walletBalance - pkg.price).toFixed(2));
-    const serverRef = '#DC-' + Math.floor(100000 + Math.random() * 900000);
-    const nowTimeStr =
-      new Date().toLocaleTimeString('bn-BD', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      }) +
-      ', ' +
-      new Date().toLocaleDateString('bn-BD', { month: 'short', day: 'numeric' });
-
-    const newOrder: Order = {
-      id: 'ORD-' + Math.floor(5000 + Math.random() * 5000),
-      userId: auth.currentUser.uid, // REAL Firebase Auth UID
-      userName: currentUser.name || auth.currentUser.displayName || 'গ্রাহক',
-      productId: product.id,
-      productTitle: product.title,
-      packageId: pkg.id,
-      packageName: `${pkg.name} (${pkg.amount || pkg.diamonds || ''})`,
-      price: pkg.price,
-      playerId,
-      zoneId: zoneId || '',
-      status: 'pending',
-      createdAt: nowTimeStr,
-      serverRef,
-      estimatedDeliverySeconds: 8,
-      notes: 'অর্ডার সিস্টেমে গৃহীত হয়েছে। সার্ভার হ্যান্ডশেকের অপেক্ষায় রয়েছে।'
-    };
+    inFlightPurchasesRef.current = true;
 
     try {
-      // 1. Write to Firestore orders collection
-      await setDoc(doc(db, 'orders', newOrder.id), {
-        ...newOrder,
-        userEmail: auth.currentUser.email || '',
-        createdAtTimestamp: serverTimestamp()
-      }, { merge: true });
+      const userUid = auth.currentUser.uid;
 
-      // 2. Update user's wallet balance in Firestore users collection
-      await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-        walletBalance: updatedBalance,
-        savedGameUid: playerId
+      if (currentUser.status === 'banned') {
+        showToast('আপনার অ্যাকাউন্টটি সাময়িকভাবে স্থগিত (Banned) করা হয়েছে। নতুন অর্ডার করা সম্ভব নয়।', 'error');
+        return { success: false, error: 'অ্যাকাউন্ট স্থগিত (Banned) রয়েছে।' };
+      }
+
+      const product = products.find((p) => p.id === productId);
+      if (!product) return { success: false, error: 'পণ্য খুঁজে পাওয়া যায়নি।' };
+
+      if (product.isOutOfStock) {
+        return { success: false, error: 'দুঃখিত, এই প্রোডাক্টটি বর্তমানে স্টক আউট (Out of Stock)।' };
+      }
+
+      const pkg = product.packages.find((p) => p.id === packageId);
+      if (!pkg) return { success: false, error: 'প্যাকেজ খুঁজে পাওয়া যায়নি।' };
+
+      if (pkg.isOutOfStock) {
+        return { success: false, error: `দুঃখিত, '${pkg.name}' প্যাকেজটি বর্তমানে স্টক আউট (Out of Stock)।` };
+      }
+
+      const orderPrice = Number(pkg.price);
+      const orderId = 'ORD-' + Math.floor(5000 + Math.random() * 5000);
+      const serverRef = '#DC-' + Math.floor(100000 + Math.random() * 900000);
+      const nowTimeStr =
+        new Date().toLocaleTimeString('bn-BD', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        }) +
+        ', ' +
+        new Date().toLocaleDateString('bn-BD', { month: 'short', day: 'numeric' });
+
+      const newOrder: Order = {
+        id: orderId,
+        userId: userUid,
+        userName: currentUser.name || auth.currentUser.displayName || 'গ্রাহক',
+        productId: product.id,
+        productTitle: product.title,
+        packageId: pkg.id,
+        packageName: `${pkg.name} (${pkg.amount || pkg.diamonds || ''})`,
+        price: orderPrice,
+        playerId,
+        zoneId: zoneId || '',
+        status: 'pending',
+        createdAt: nowTimeStr,
+        serverRef,
+        estimatedDeliverySeconds: 8,
+        notes: 'অর্ডার সিস্টেমে গৃহীত হয়েছে। ওয়ালেট থেকে টাকা কর্তন সম্পন্ন।'
+      };
+
+      const userRef = doc(db, 'users', userUid);
+      const orderRef = doc(db, 'orders', orderId);
+
+      let finalDeductedBalance = 0;
+
+      // ATOMIC TRANSACTION (STEP 1):
+      // 1. Read the user's users/{uid} document.
+      // 2. Check walletBalance >= order price. If not enough, abort the transaction entirely.
+      // 3. Atomically decrement walletBalance immediately & create the order document with status "pending".
+      await runTransaction(db, async (transaction) => {
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) {
+          throw new Error('গ্রাহক অ্যাকাউন্ট ডাটাবেজে পাওয়া যায়নি।');
+        }
+
+        const userData = userSnap.data();
+        if (userData.status === 'banned') {
+          throw new Error('আপনার অ্যাকাউন্টটি সাময়িকভাবে স্থগিত (Banned) করা হয়েছে।');
+        }
+
+        const currentBal = typeof userData.walletBalance === 'number' ? userData.walletBalance : 0.00;
+        if (currentBal < orderPrice) {
+          throw new Error('পর্যাপ্ত ব্যালেন্স নেই, আগে ওয়ালেটে টাকা যোগ করুন');
+        }
+
+        finalDeductedBalance = Number((currentBal - orderPrice).toFixed(2));
+
+        // a. Decrement walletBalance by the exact order price immediately
+        transaction.update(userRef, {
+          walletBalance: finalDeductedBalance,
+          savedGameUid: playerId
+        });
+
+        // b. Create the order document with status "pending"
+        transaction.set(orderRef, {
+          ...newOrder,
+          userEmail: auth.currentUser?.email || '',
+          createdAtTimestamp: serverTimestamp()
+        });
       });
 
-      // 3. Update local state
+      // Update local states immediately
       setCurrentUser((prev) =>
         prev
           ? {
               ...prev,
-              walletBalance: updatedBalance,
+              walletBalance: finalDeductedBalance,
               savedGameUid: playerId
             }
           : null
@@ -824,12 +804,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setOrders((prev) => [newOrder, ...prev.filter((o) => o.id !== newOrder.id)]);
       setActiveTrackingOrderId(newOrder.id);
 
-      showToast(`অর্ডার সফল! ${pkg.name} গৃহীত হয়েছে (Pending)।`, 'success');
+      showToast(`অর্ডার সফল! ৳ ${orderPrice} ওয়ালেট থেকে কেটে নেওয়া হয়েছে এবং অর্ডার কিউতে জমা হয়েছে।`, 'success');
       return { success: true, order: newOrder };
     } catch (fsErr: any) {
-      console.warn('Firestore purchaseProduct note:', fsErr?.message || fsErr);
-      showToast(`অর্ডার সম্পন্ন করা সম্ভব হয়নি: ${fsErr?.message || 'সার্ভার ত্রুটি'}`, 'error');
-      return { success: false, error: 'অর্ডার তৈরি করা যায়নি, আবার চেষ্টা করুন।' };
+      console.error('Firestore runTransaction purchaseProduct error:', fsErr);
+      const errMsg = fsErr?.message || 'অর্ডার সম্পন্ন করা সম্ভব হয়নি।';
+      if (errMsg.includes('পর্যাপ্ত ব্যালেন্স নেই')) {
+        showToast('পর্যাপ্ত ব্যালেন্স নেই, আগে ওয়ালেটে টাকা যোগ করুন', 'error');
+        return { success: false, error: 'পর্যাপ্ত ব্যালেন্স নেই, আগে ওয়ালেটে টাকা যোগ করুন' };
+      }
+      showToast(`অর্ডার সম্পন্ন করা সম্ভব হয়নি: ${errMsg}`, 'error');
+      return { success: false, error: errMsg };
+    } finally {
+      inFlightPurchasesRef.current = false;
     }
   };
 
@@ -1683,7 +1670,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         allUsers,
         toggleUserBan,
         addManualDeposit,
-        loginWithGoogle,
         signupWithEmail,
         loginWithEmail,
         loginWithPhone,

@@ -220,7 +220,7 @@ export const OrdersView: React.FC = () => {
                     {isFailed && (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 text-rose-950 border border-rose-300 text-xs font-bold">
                         <XCircle className="w-3.5 h-3.5 text-rose-700" />
-                        <span>Failed</span>
+                        <span>{order.refunded ? 'বাতিল ও রিফান্ডেড (Refunded)' : 'বাতিল (Rejected)'}</span>
                       </span>
                     )}
                   </div>
@@ -232,12 +232,14 @@ export const OrdersView: React.FC = () => {
                     <span className="text-slate-600">ডেলিভারি পর্যায়:</span>
                     <span className="text-black font-extrabold">
                       {isPending
-                        ? 'ধাপ ১: Pending (অর্ডার গৃহীত)'
+                        ? 'ধাপ ১: Pending (অর্ডার গৃহীত ও ওয়ালেট কর্তন সম্পন্ন)'
                         : isProcessing
                         ? 'ধাপ ২: Processing (সার্ভার প্রসেসিং চলছে)'
                         : isDelivered
                         ? 'ধাপ ৩: Delivered (সফল ডেলিভারি)'
-                        : 'ব্যর্থ'}
+                        : order.refunded
+                        ? `বাতিল — সম্পূর্ণ মূল্য (৳ ${order.price}) ওয়ালেটে রিফান্ড করা হয়েছে`
+                        : 'অর্ডারটি বাতিল করা হয়েছে'}
                     </span>
                   </div>
 
