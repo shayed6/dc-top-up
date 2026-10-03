@@ -17,12 +17,41 @@ import {
   deleteDoc,
   onSnapshot, 
   collection, 
+  query,
+  where,
   serverTimestamp, 
   increment,
   runTransaction
 } from 'firebase/firestore';
 
 export type ActiveTab = 'home' | 'deposit' | 'orders' | 'profile' | 'login';
+
+export const formatOrderDateTime = (date: Date = new Date()): string => {
+  try {
+    const timeStr = date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+    const dateStr = date.toLocaleDateString('bn-BD', {
+      month: 'short',
+      day: 'numeric'
+    });
+    return `${timeStr}, ${dateStr}`;
+  } catch {
+    const hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const formattedHours = String(hours % 12 || 12).padStart(2, '0');
+    return `${formattedHours}:${minutes} ${ampm}`;
+  }
+};
+
+export const cleanDisplayTimestamp = (ts?: string): string => {
+  if (!ts) return '';
+  // Clean up any double seconds or invalid padding (e.g. "০৩:০৮:৪৪" or ":৮৮" -> "০৩:০৮")
+  return ts.replace(/(:\d{2}):\d{2}/, '$1').replace(/(:[০-৯]{2}):[০-৯]{2}/, '$1');
+};
 
 interface ToastInfo {
   id: string;
@@ -42,7 +71,7 @@ interface AppContextType {
   orders: Order[];
   activeTrackingOrderId: string | null;
   setActiveTrackingOrderId: (id: string | null) => void;
-  advanceOrderStep: (orderId: string) => void;
+  deleteOrder: (orderId: string) => Promise<boolean>;
   toasts: ToastInfo[];
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   
@@ -277,11 +306,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  // Real-time Firestore sync for deposits collection
+  // Real-time Firestore sync for deposits collection (scoped by role to prevent permission denied)
   useEffect(() => {
+    if (!currentUser) {
+      setDeposits([]);
+      return;
+    }
     try {
-      const depositsColl = collection(db, 'deposits');
-      const unsub = onSnapshot(depositsColl, (snapshot) => {
+      const q = currentUser.role === 'admin'
+        ? collection(db, 'deposits')
+        : query(collection(db, 'deposits'), where('userId', '==', currentUser.id));
+
+      const unsub = onSnapshot(q, (snapshot) => {
         const firestoreDeposits: DepositRequest[] = [];
         snapshot.forEach((d) => {
           firestoreDeposits.push({ ...(d.data() as DepositRequest), id: d.id });
@@ -294,13 +330,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {
       console.warn('Firestore deposits subscription error:', e);
     }
-  }, []);
+  }, [currentUser?.id, currentUser?.role]);
 
-  // Real-time Firestore sync for orders collection
+  // Real-time Firestore sync for orders collection (scoped by role to prevent permission denied)
   useEffect(() => {
+    if (!currentUser) {
+      setOrders([]);
+      return;
+    }
     try {
-      const ordersColl = collection(db, 'orders');
-      const unsub = onSnapshot(ordersColl, (snapshot) => {
+      const q = currentUser.role === 'admin'
+        ? collection(db, 'orders')
+        : query(collection(db, 'orders'), where('userId', '==', currentUser.id));
+
+      const unsub = onSnapshot(q, (snapshot) => {
         const firestoreOrders: Order[] = [];
         snapshot.forEach((o) => {
           firestoreOrders.push({ ...(o.data() as Order), id: o.id });
@@ -313,7 +356,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {
       console.warn('Firestore orders subscription error:', e);
     }
-  }, []);
+  }, [currentUser?.id, currentUser?.role]);
   // Real-time Firestore sync for products collection (read by public store & admin)
   useEffect(() => {
     try {
@@ -474,8 +517,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  // Real-time Firestore sync for users collection (accessible by admin)
+  // Real-time Firestore sync for users collection (accessible by admin only)
   useEffect(() => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      setAllUsers([]);
+      return;
+    }
     try {
       const usersColl = collection(db, 'users');
       const unsub = onSnapshot(usersColl, (snapshot) => {
@@ -503,7 +550,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {
       console.warn('Users listener setup error:', e);
     }
-  }, []);
+  }, [currentUser?.id, currentUser?.role]);
 
   const signupWithEmail = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     if (!name.trim()) return { success: false, error: 'আপনার পুরো নাম লিখুন।' };
@@ -722,14 +769,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const orderPrice = Number(pkg.price);
       const orderId = 'ORD-' + Math.floor(5000 + Math.random() * 5000);
       const serverRef = '#DC-' + Math.floor(100000 + Math.random() * 900000);
-      const nowTimeStr =
-        new Date().toLocaleTimeString('bn-BD', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        }) +
-        ', ' +
-        new Date().toLocaleDateString('bn-BD', { month: 'short', day: 'numeric' });
+      const nowTimeStr = formatOrderDateTime(new Date());
 
       const newOrder: Order = {
         id: orderId,
@@ -754,10 +794,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       let finalDeductedBalance = 0;
 
-      // ATOMIC TRANSACTION (STEP 1):
+      // ATOMIC TRANSACTION:
       // 1. Read the user's users/{uid} document.
       // 2. Check walletBalance >= order price. If not enough, abort the transaction entirely.
-      // 3. Atomically decrement walletBalance immediately & create the order document with status "pending".
+      // 3. Atomically create order with status 'pending' AND decrement walletBalance.
       await runTransaction(db, async (transaction) => {
         const userSnap = await transaction.get(userRef);
         if (!userSnap.exists()) {
@@ -776,21 +816,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         finalDeductedBalance = Number((currentBal - orderPrice).toFixed(2));
 
-        // a. Decrement walletBalance by the exact order price immediately
-        transaction.update(userRef, {
-          walletBalance: finalDeductedBalance,
-          savedGameUid: playerId
-        });
-
-        // b. Create the order document with status "pending"
+        // a. Create the order document with status "pending" (MUST be pending)
         transaction.set(orderRef, {
           ...newOrder,
           userEmail: auth.currentUser?.email || '',
           createdAtTimestamp: serverTimestamp()
         });
+
+        // b. Decrement walletBalance by the exact order price immediately
+        transaction.update(userRef, {
+          walletBalance: finalDeductedBalance,
+          savedGameUid: playerId
+        });
       });
 
-      // Update local states immediately
+      // Update local states immediately upon successful commit
       setCurrentUser((prev) =>
         prev
           ? {
@@ -818,37 +858,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       inFlightPurchasesRef.current = false;
     }
-  };
-
-  const advanceOrderStep = (orderId: string) => {
-    const nowTime = new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id !== orderId) return o;
-        if (o.status === 'pending') {
-          return {
-            ...o,
-            status: 'processing',
-            processingAt: nowTime,
-            notes: 'সার্ভার এপিআই এর সাথে কানেক্ট হয়েছে এবং ডায়মন্ড/আইটেম ডিসপ্যাচ করা হচ্ছে...'
-          };
-        } else if (o.status === 'processing') {
-          return {
-            ...o,
-            status: 'delivered',
-            deliveredAt: nowTime,
-            notes: `সফলভাবে একাউন্টে পাঠানো হয়েছে! রেফারেন্স: ${o.serverRef || '#DC-889104'}`
-          };
-        } else if (o.status === 'delivered') {
-          return {
-            ...o,
-            status: 'pending',
-            notes: 'অর্ডার পুনরায় কিউতে যোগ করা হয়েছে।'
-          };
-        }
-        return o;
-      })
-    );
   };
 
   const approveDeposit = async (depositId: string) => {
@@ -1002,11 +1011,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    const nowTime = new Date().toLocaleTimeString('bn-BD', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
+    const nowTime = formatOrderDateTime(new Date());
 
     const isCancelling = status === 'rejected' || status === 'cancelled';
     const shouldRefund = isCancelling && !targetOrder.refunded && targetOrder.price > 0 && !!targetOrder.userId;
@@ -1133,6 +1138,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : o
       )
     );
+  };
+
+  const deleteOrder = async (orderId: string): Promise<boolean> => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা অর্ডার মুছতে পারেন।', 'error');
+      return false;
+    }
+
+    try {
+      await deleteDoc(doc(db, 'orders', orderId));
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      showToast(`অর্ডার #${orderId} সফলভাবে মুছে ফেলা হয়েছে!`, 'success');
+      return true;
+    } catch (fsErr: any) {
+      console.error('Firestore deleteDoc order error:', fsErr);
+      showToast(`অর্ডার ডিলিট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+      return false;
+    }
   };
 
   const seedProductsToFirestore = async () => {
@@ -1656,7 +1679,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         orders,
         activeTrackingOrderId,
         setActiveTrackingOrderId,
-        advanceOrderStep,
+        deleteOrder,
         toasts,
         showToast,
         notice,

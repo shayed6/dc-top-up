@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp, cleanDisplayTimestamp } from '../context/AppContext';
 import { Order } from '../types';
 import { 
   ShoppingBag, Clock, CheckCircle2, XCircle, Gamepad2, 
@@ -340,7 +340,7 @@ export const OrdersView: React.FC = () => {
 
                   <div>
                     <span className="text-slate-600 text-[10px] block font-bold">অর্ডারের সময়</span>
-                    <span className="text-black font-medium">{order.createdAt}</span>
+                    <span className="text-black font-medium">{cleanDisplayTimestamp(order.createdAt)}</span>
                   </div>
                 </div>
 

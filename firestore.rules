@@ -18,13 +18,14 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        getUserData(request.auth.uid).role == 'admin';
+        getUserData(request.auth.uid).get('role', 'customer') == 'admin';
     }
 
     function isNotBanned() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        getUserData(request.auth.uid).status != 'banned';
+      return isAuthenticated() && (
+        !exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+        getUserData(request.auth.uid).get('status', 'active') != 'banned'
+      );
     }
 
     // Products catalog: Anyone can view, only Admin can add/edit/delete
@@ -46,9 +47,9 @@ service cloud.firestore {
 
       // On new user signup: role must be 'customer', walletBalance must be 0, status must be 'active'
       allow create: if isOwner(userId) &&
-        request.resource.data.role == 'customer' &&
-        request.resource.data.walletBalance == 0 &&
-        request.resource.data.status == 'active';
+        request.resource.data.get('role', 'customer') == 'customer' &&
+        request.resource.data.get('walletBalance', 0) == 0 &&
+        request.resource.data.get('status', 'active') == 'active';
 
       // Updates:
       // - Admin can update any field (including walletBalance, role, and status)
@@ -62,7 +63,10 @@ service cloud.firestore {
           (
             request.resource.data.walletBalance is number &&
             request.resource.data.walletBalance >= 0 &&
-            request.resource.data.walletBalance <= resource.data.walletBalance
+            (
+              !('walletBalance' in resource.data) ||
+              request.resource.data.walletBalance <= resource.data.walletBalance
+            )
           )
         )
       );
@@ -93,9 +97,16 @@ service cloud.firestore {
       allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
 
       // Customers can create orders if authenticated and not banned
+      // Order status MUST be 'pending' upon creation (never directly created as 'delivered' or 'processing')
+      // User ID must match authenticated user
+      // Price must be a valid non-negative number
       allow create: if isAuthenticated() && isNotBanned() && (
-        request.resource.data.userId == request.auth.uid ||
-        isAdmin()
+        isAdmin() || (
+          request.resource.data.userId == request.auth.uid &&
+          request.resource.data.status == 'pending' &&
+          request.resource.data.price is number &&
+          request.resource.data.price >= 0
+        )
       );
 
       // Only Admin can change order status (processing, delivered, rejected, cancelled)

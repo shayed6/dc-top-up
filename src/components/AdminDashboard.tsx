@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp, cleanDisplayTimestamp } from '../context/AppContext';
 import { DepositRequest, TopUpProduct, TopUpPackage, ProductCategory, HomeBanner, Order } from '../types';
 import { PRESET_PRODUCT_IMAGES } from '../data/initialData';
 import { SafeImage } from './SafeImage';
@@ -20,6 +20,7 @@ export const AdminDashboard: React.FC = () => {
     approveDeposit, 
     rejectDeposit, 
     updateOrderStatus,
+    deleteOrder,
     addProduct,
     updateProduct,
     deleteProduct,
@@ -1415,7 +1416,7 @@ export const AdminDashboard: React.FC = () => {
                       <span>গ্রাহক: <strong className="text-black">{ord.userName}</strong></span>
                       <span>UID: <strong className="font-mono text-black font-extrabold">{ord.playerId}</strong></span>
                       <span>মূল্য: <strong className="text-black font-sans font-extrabold">৳ {ord.price}</strong></span>
-                      <span>সময়: {ord.createdAt}</span>
+                      <span>সময়: {cleanDisplayTimestamp(ord.createdAt)}</span>
                     </div>
                   </div>
 
@@ -1495,6 +1496,19 @@ export const AdminDashboard: React.FC = () => {
                             <span>বাতিল ও রিফান্ডেড (৳ {ord.price})</span>
                           </span>
                         )}
+
+                        <button
+                          id={`admin-delete-order-${ord.id}`}
+                          onClick={() => {
+                            if (window.confirm(`আপনি কি নিশ্চিতভাবে অর্ডার #${ord.id} (${ord.productTitle}) মুছে ফেলতে চান? এটি ডাটাবেজ থেকে স্থায়ীভাবে মুছে যাবে।`)) {
+                              deleteOrder(ord.id);
+                            }
+                          }}
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 border border-slate-300 hover:border-rose-300 transition-colors cursor-pointer shadow-xs ml-1"
+                          title="অর্ডার রেকর্ড মুছুন (Delete)"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </>
                     ) : (
                       <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-300 flex items-center gap-1">

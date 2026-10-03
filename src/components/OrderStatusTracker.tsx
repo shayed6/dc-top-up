@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp, cleanDisplayTimestamp } from '../context/AppContext';
 import { Order } from '../types';
 import { SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from '../data/initialData';
 import { 
@@ -20,7 +20,7 @@ export const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
   className = '',
   compact = false
 }) => {
-  const { orders, currentUser, activeTrackingOrderId, setActiveTrackingOrderId, advanceOrderStep } = useApp();
+  const { orders, currentUser, activeTrackingOrderId, setActiveTrackingOrderId } = useApp();
   const [copiedId, setCopiedId] = useState(false);
   const [copiedUid, setCopiedUid] = useState(false);
 
@@ -267,7 +267,7 @@ export const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
 
               <div className="pt-1 text-[10px] text-slate-500 flex items-center gap-1 font-mono">
                 <Clock className="w-3 h-3" />
-                <span>{activeOrder.createdAt}</span>
+                <span>{cleanDisplayTimestamp(activeOrder.createdAt)}</span>
               </div>
             </div>
 
@@ -320,7 +320,7 @@ export const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
               <div className="pt-1 text-[10px] text-slate-500 flex items-center gap-1 font-mono">
                 <Clock className="w-3 h-3" />
                 <span>
-                  {activeOrder.processingAt || (step2Active ? 'বর্তমানে চলমান...' : step2Completed ? 'সম্পন্ন' : 'পরবর্তী ধাপ')}
+                  {cleanDisplayTimestamp(activeOrder.processingAt) || (step2Active ? 'বর্তমানে চলমান...' : step2Completed ? 'সম্পন্ন' : 'পরবর্তী ধাপ')}
                 </span>
               </div>
             </div>
@@ -368,7 +368,7 @@ export const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
               <div className="pt-1 text-[10px] text-slate-500 flex items-center gap-1 font-mono">
                 <Clock className="w-3 h-3" />
                 <span>
-                  {activeOrder.deliveredAt || (step3Active ? 'ডেলিভার্ড' : 'আনুমানিক ১-২ মিনিট')}
+                  {cleanDisplayTimestamp(activeOrder.deliveredAt) || (step3Active ? 'ডেলিভার্ড' : 'আনুমানিক ১-২ মিনিট')}
                 </span>
               </div>
             </div>
@@ -409,25 +409,19 @@ export const OrderStatusTracker: React.FC<OrderStatusTrackerProps> = ({
         {/* Interactive Controls & Actions */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200">
           <div className="flex items-center gap-2">
-            {/* Simulation button so user/tester can see Progression in real time! */}
-            <button
-              id={`advance-step-btn-${activeOrder.id}`}
-              onClick={() => advanceOrderStep(activeOrder.id)}
-              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-              title="রিয়েল-টাইম প্রোগ্রেস টেস্ট করুন (পরবর্তী ধাপে নিয়ে যান)"
-            >
-              <Play className="w-3.5 h-3.5 text-black" />
-              <span>
-                {isPending
-                  ? 'ধাপ ২ (Processing) এ নিয়ে যান'
+            <span className="text-xs font-bold text-slate-700">বর্তমান স্ট্যাটাস:</span>
+            <span
+              className={`text-xs font-extrabold px-2.5 py-1 rounded-full ${
+                isDelivered
+                  ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
                   : isProcessing
-                  ? 'ধাপ ৩ (Delivered) এ নিয়ে যান'
-                  : 'পুনরায় Pending এ নিয়ে টেস্ট করুন'}
-              </span>
-            </button>
-
-            <span className="text-[11px] text-slate-500 hidden sm:inline">
-              (লাইভ টেস্ট সিমুলেটর)
+                  ? 'bg-blue-100 text-blue-900 border border-blue-300'
+                  : isFailed
+                  ? 'bg-rose-100 text-rose-950 border border-rose-300'
+                  : 'bg-amber-100 text-amber-950 border border-amber-300'
+              }`}
+            >
+              {isDelivered ? 'ডেলিভার্ড (Delivered)' : isProcessing ? 'প্রসেসিং (Processing)' : isFailed ? 'বাতিল' : 'অপেক্ষমাণ (Pending)'}
             </span>
           </div>
 

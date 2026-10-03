@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp, cleanDisplayTimestamp } from '../context/AppContext';
 import { Order } from '../types';
 import { 
   User as UserIcon, Wallet, PlusCircle, 
@@ -537,7 +537,7 @@ export const UserProfileView: React.FC = () => {
                         <span aria-hidden="true">·</span>
                         <span className="text-slate-600">UID: <span className="font-mono font-bold text-black">{order.playerId}</span></span>
                         <span aria-hidden="true">·</span>
-                        <span className="text-slate-500">{order.createdAt}</span>
+                        <span className="text-slate-500">{cleanDisplayTimestamp(order.createdAt)}</span>
                       </div>
                     </div>
                   </div>
