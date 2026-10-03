@@ -1,9 +1,9 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Gamepad2, PlusCircle, ShoppingBag, User } from 'lucide-react';
+import { Gamepad2, PlusCircle, ShoppingBag, User, Shield } from 'lucide-react';
 
 export const BottomNav: React.FC = () => {
-  const { activeTab, setActiveTab, orders } = useApp();
+  const { activeTab, setActiveTab, orders, currentUser } = useApp();
 
   const activeOrdersCount = orders.filter((o) => o.status === 'pending' || o.status === 'processing').length;
 
@@ -75,6 +75,20 @@ export const BottomNav: React.FC = () => {
           <User className="w-5 h-5 mb-0.5 text-purple-700" />
           <span className="text-[10px] leading-tight">প্রোফাইল</span>
         </button>
+
+        {/* Admin Quick Button for role === 'admin' */}
+        {currentUser?.role === 'admin' && (
+          <button
+            id="mobile-nav-admin-btn"
+            onClick={() => {
+              window.location.hash = '#admin';
+            }}
+            className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-amber-600 font-black cursor-pointer bg-amber-50 border border-amber-200"
+          >
+            <Shield className="w-5 h-5 mb-0.5 text-amber-600" />
+            <span className="text-[10px] leading-tight font-extrabold">এডমিন</span>
+          </button>
+        )}
       </div>
     </nav>
   );

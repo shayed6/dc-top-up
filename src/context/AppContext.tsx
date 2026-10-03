@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { User, DepositRequest, Order, OrderStatus, TopUpProduct, TopUpPackage, PaymentMethodType, AppNotice, HomeBanner } from '../types';
-import { INITIAL_USER, ADMIN_USER, INITIAL_PRODUCTS, INITIAL_DEPOSITS, INITIAL_ORDERS, INITIAL_NOTICE, INITIAL_BANNERS } from '../data/initialData';
+import { INITIAL_PRODUCTS, INITIAL_NOTICE, INITIAL_BANNERS } from '../data/initialData';
 import { auth, db, googleProvider } from '../firebase';
 import { 
   onAuthStateChanged, 
@@ -155,6 +155,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
 
+  // In-flight operation deduplication to guarantee idempotency and prevent double-clicks
+  const inFlightDepositsRef = useRef<Set<string>>(new Set());
+  const inFlightOrdersRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     localStorage.setItem('dc_products', JSON.stringify(products));
   }, [products]);
@@ -195,9 +199,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
 
-      const isAdminEmail =
-        firebaseUser.email === 'shayedafride24@gmail.com' ||
-        firebaseUser.email === 'admin@dctopup.com';
       const userRef = doc(db, 'users', firebaseUser.uid);
 
       try {
@@ -209,7 +210,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             email: firebaseUser.email || '',
             phone: firebaseUser.phoneNumber || '',
             walletBalance: 0.00,
-            role: isAdminEmail ? 'admin' : 'customer',
+            role: 'customer',
             status: 'active',
             joinedAt: new Date().toISOString().split('T')[0]
           };
@@ -226,7 +227,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             email: data.email || firebaseUser.email || '',
             phone: data.phone || firebaseUser.phoneNumber || '',
             walletBalance: typeof data.walletBalance === 'number' ? data.walletBalance : 0.00,
-            role: data.role || (isAdminEmail ? 'admin' : 'customer'),
+            role: data.role || 'customer',
             status: data.status || 'active',
             joinedAt: data.joinedAt || new Date().toISOString().split('T')[0],
             photoURL: firebaseUser.photoURL || data.photoURL || '',
@@ -241,7 +242,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           email: firebaseUser.email || '',
           phone: firebaseUser.phoneNumber || '',
           walletBalance: 0.00,
-          role: isAdminEmail ? 'admin' : 'customer',
+          role: 'customer',
           status: 'active',
           joinedAt: new Date().toISOString().split('T')[0]
         });
@@ -257,7 +258,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             email: data.email || firebaseUser.email || prev?.email || '',
             phone: data.phone || firebaseUser.phoneNumber || prev?.phone || '',
             walletBalance: typeof data.walletBalance === 'number' ? data.walletBalance : (prev?.walletBalance ?? 0.00),
-            role: data.role || (isAdminEmail ? 'admin' : (prev?.role || 'customer')),
+            role: data.role || 'customer',
             status: data.status || 'active',
             joinedAt: data.joinedAt || prev?.joinedAt || new Date().toISOString().split('T')[0],
             photoURL: firebaseUser.photoURL || data.photoURL || prev?.photoURL || '',
@@ -509,7 +510,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const u = result.user;
-      const isAdminEmail = u.email === 'shayedafride24@gmail.com' || u.email === 'admin@dctopup.com';
 
       const userRef = doc(db, 'users', u.uid);
       const snap = await getDoc(userRef);
@@ -521,7 +521,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           photoURL: u.photoURL || '',
           phone: u.phoneNumber || '',
           walletBalance: 0.00,
-          role: isAdminEmail ? 'admin' : 'customer',
+          role: 'customer',
           status: 'active',
           joinedAt: new Date().toISOString().split('T')[0]
         };
@@ -574,14 +574,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // 2. ONLY create Firestore users/{uid} document AFTER createUserWithEmailAndPassword succeeds!
-      const isAdminEmail = cleanEmail === 'shayedafride24@gmail.com' || cleanEmail === 'admin@dctopup.com';
       const userDocData: User = {
         id: firebaseUser.uid,
         name: name.trim(),
         email: cleanEmail,
         phone: '',
         walletBalance: 0.00,
-        role: isAdminEmail ? 'admin' : 'customer',
+        role: 'customer',
         status: 'active',
         joinedAt: new Date().toISOString().split('T')[0]
       };
@@ -654,7 +653,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentUser(null);
     setIsAdminMode(false);
     localStorage.removeItem('dc_user');
-    sessionStorage.removeItem('dc_admin_unlocked');
     showToast('লগআউট সফল হয়েছে।', 'info');
   };
 
@@ -664,9 +662,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
+    // Sanitize: never allow role, walletBalance, or status to be changed by profile update
+    const allowedUpdates: any = {};
+    if (updates.name !== undefined) allowedUpdates.name = updates.name;
+    if (updates.phone !== undefined) allowedUpdates.phone = updates.phone;
+    if (updates.email !== undefined) allowedUpdates.email = updates.email;
+    if (updates.savedGameUid !== undefined) allowedUpdates.savedGameUid = updates.savedGameUid;
+    if (updates.photoURL !== undefined) allowedUpdates.photoURL = updates.photoURL;
+
     try {
-      await updateDoc(doc(db, 'users', auth.currentUser.uid), updates);
-      setCurrentUser((prev) => (prev ? { ...prev, ...updates } : null));
+      await updateDoc(doc(db, 'users', auth.currentUser.uid), allowedUpdates);
+      setCurrentUser((prev) => (prev ? { ...prev, ...allowedUpdates } : null));
       showToast('প্রোফাইল তথ্য সফলভাবে আপডেট হয়েছে!', 'success');
     } catch (err: any) {
       console.warn('Update profile note:', err?.message || err);
@@ -864,59 +870,87 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    const deposit = deposits.find((d) => d.id === depositId);
-    if (!deposit) return;
+    if (inFlightDepositsRef.current.has(depositId)) {
+      return; // Already in flight, ignore duplicate click
+    }
+    inFlightDepositsRef.current.add(depositId);
 
     const nowStr = new Date().toLocaleDateString('bn-BD', {
       hour: '2-digit',
       minute: '2-digit'
     });
 
-    // 1. Direct browser client SDK updateDoc call to Firestore deposits/{depositId}
     try {
-      await updateDoc(doc(db, 'deposits', depositId), {
-        status: 'approved',
-        verifiedAt: nowStr,
-        verifiedBy: currentUser.id
-      });
-    } catch (fsErr: any) {
-      console.error('Firestore updateDoc deposit error:', fsErr);
-      showToast(`Firestore ডিপোজিট আপডেট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
-    }
+      let creditedAmount = 0;
+      let targetUserId = '';
+      let newBalance = 0;
 
-    // 2. Also update customer's wallet balance in Firestore users/{userId}
-    if (deposit.userId) {
-      try {
-        await updateDoc(doc(db, 'users', deposit.userId), {
-          walletBalance: increment(deposit.amount)
+      // ATOMIC TRANSACTION: 1. Verify pending status -> 2. Increment wallet balance -> 3. Mark approved
+      await runTransaction(db, async (transaction) => {
+        const depRef = doc(db, 'deposits', depositId);
+        const depSnap = await transaction.get(depRef);
+
+        if (!depSnap.exists()) {
+          throw new Error('ডিপোজিট রেকর্ড পাওয়া যায়নি।');
+        }
+
+        const depData = depSnap.data();
+        if (depData.status === 'approved') {
+          throw new Error('এই ডিপোজিটটি ইতিমধ্যেই অনুমোদিত হয়েছে।');
+        }
+        if (depData.status !== 'pending') {
+          throw new Error(`এই ডিপোজিটের বর্তমান স্ট্যাটাস '${depData.status}', অনুমোদন করা সম্ভব নয়।`);
+        }
+
+        creditedAmount = Number(depData.amount || 0);
+        targetUserId = depData.userId;
+
+        if (targetUserId) {
+          const userRef = doc(db, 'users', targetUserId);
+          const userSnap = await transaction.get(userRef);
+          if (userSnap.exists()) {
+            const currentBal = typeof userSnap.data().walletBalance === 'number' ? userSnap.data().walletBalance : 0.00;
+            newBalance = Number((currentBal + creditedAmount).toFixed(2));
+            transaction.update(userRef, {
+              walletBalance: newBalance
+            });
+          }
+        }
+
+        transaction.update(depRef, {
+          status: 'approved',
+          verifiedAt: nowStr,
+          verifiedBy: currentUser.id
         });
-      } catch (userBalErr) {
-        console.warn('Firestore user wallet update note:', userBalErr);
+      });
+
+      // Update local state
+      setDeposits((prev) =>
+        prev.map((d) =>
+          d.id === depositId
+            ? {
+                ...d,
+                status: 'approved',
+                verifiedAt: nowStr
+              }
+            : d
+        )
+      );
+
+      if (targetUserId === currentUser.id) {
+        setCurrentUser((prev) => (prev ? {
+          ...prev,
+          walletBalance: newBalance
+        } : null));
       }
+
+      showToast(`ডিপোজিট ${depositId} (৳ ${creditedAmount}) সফলভাবে অনুমোদন ও ওয়ালেটে যুক্ত হয়েছে!`, 'success');
+    } catch (fsErr: any) {
+      console.error('Firestore runTransaction approveDeposit error:', fsErr);
+      showToast(`ডিপোজিট অনুমোদন ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    } finally {
+      inFlightDepositsRef.current.delete(depositId);
     }
-
-    // 3. Update local state
-    setDeposits((prev) =>
-      prev.map((d) =>
-        d.id === depositId
-          ? {
-              ...d,
-              status: 'approved',
-              verifiedAt: nowStr
-            }
-          : d
-      )
-    );
-
-    // If target user is current user, update balance
-    if (deposit.userId === currentUser.id) {
-      setCurrentUser((prev) => (prev ? {
-        ...prev,
-        walletBalance: Number((prev.walletBalance + deposit.amount).toFixed(2))
-      } : null));
-    }
-
-    showToast(`ডিপোজিট ${deposit.id} (৳ ${deposit.amount}) সরাসরি Firestore-এ অ্যাপ্রুভ করা হয়েছে!`, 'success');
   };
 
   const rejectDeposit = async (depositId: string, reason: string) => {
@@ -925,12 +959,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
+    if (inFlightDepositsRef.current.has(depositId)) {
+      return;
+    }
+    inFlightDepositsRef.current.add(depositId);
+
     const nowStr = new Date().toLocaleDateString('bn-BD', {
       hour: '2-digit',
       minute: '2-digit'
     });
 
-    // Direct browser client SDK updateDoc call to Firestore deposits/{depositId}
     try {
       await updateDoc(doc(db, 'deposits', depositId), {
         status: 'rejected',
@@ -938,24 +976,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         verifiedAt: nowStr,
         verifiedBy: currentUser.id
       });
+
+      setDeposits((prev) =>
+        prev.map((d) =>
+          d.id === depositId
+            ? {
+                ...d,
+                status: 'rejected',
+                rejectReason: reason || 'লেনদেন ভেরিফিকেশন ব্যর্থ হয়েছে।',
+                verifiedAt: nowStr
+              }
+            : d
+        )
+      );
+      showToast(`ডিপোজিট ${depositId} সরাসরি Firestore-এ রিজেক্ট করা হয়েছে।`, 'info');
     } catch (fsErr: any) {
       console.error('Firestore updateDoc reject deposit error:', fsErr);
       showToast(`Firestore রিজেক্ট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    } finally {
+      inFlightDepositsRef.current.delete(depositId);
     }
-
-    setDeposits((prev) =>
-      prev.map((d) =>
-        d.id === depositId
-          ? {
-              ...d,
-              status: 'rejected',
-              rejectReason: reason || 'লেনদেন ভেরিফিকেশন ব্যর্থ হয়েছে।',
-              verifiedAt: nowStr
-            }
-          : d
-      )
-    );
-    showToast(`ডিপোজিট ${depositId} সরাসরি Firestore-এ রিজেক্ট করা হয়েছে।`, 'info');
   };
 
   const updateOrderStatus = async (orderId: string, status: OrderStatus, notes?: string) => {
@@ -964,8 +1004,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
+    if (inFlightOrdersRef.current.has(orderId)) {
+      return; // Already in-flight
+    }
+    inFlightOrdersRef.current.add(orderId);
+
     const targetOrder = orders.find((o) => o.id === orderId);
-    if (!targetOrder) return;
+    if (!targetOrder) {
+      inFlightOrdersRef.current.delete(orderId);
+      return;
+    }
 
     const nowTime = new Date().toLocaleTimeString('bn-BD', {
       hour: '2-digit',
@@ -1083,6 +1131,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (fsErr: any) {
       console.error('Firestore runTransaction updateOrderStatus error:', fsErr);
       showToast(`Firestore অর্ডার আপডেট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    } finally {
+      inFlightOrdersRef.current.delete(orderId);
     }
 
     setOrders((prev) =>

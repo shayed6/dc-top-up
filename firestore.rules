@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getUserData(request.auth.uid).role == 'admin';
+    }
+
+    function isNotBanned() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getUserData(request.auth.uid).status != 'banned';
+    }
+
+    // Products catalog: Anyone can view, only Admin can add/edit/delete
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Site configuration (Notice text & homepage banners): Public read, Admin write
+    match /siteConfig/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Admin can read all users; User can read own profile
+      allow read: if isOwner(userId) || isAdmin();
+
+      // On new user signup: role must be 'customer', walletBalance must be 0, status must be 'active'
+      allow create: if isOwner(userId) &&
+        request.resource.data.role == 'customer' &&
+        request.resource.data.walletBalance == 0 &&
+        request.resource.data.status == 'active';
+
+      // Updates:
+      // - Admin can update any field (including walletBalance, role, and status)
+      // - Non-admin user cannot change role, walletBalance, or status
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'walletBalance', 'status'])
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // Deposits collection
+    match /deposits/{depositId} {
+      // User can read their own deposits; Admin can read all deposits
+      allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+
+      // Customers can submit deposit requests if authenticated, not banned, and status is 'pending'
+      allow create: if isAuthenticated() && isNotBanned() && (
+        (request.resource.data.userId == request.auth.uid && request.resource.data.status == 'pending') ||
+        isAdmin()
+      );
+
+      // Only Admin can verify/approve/reject deposits
+      allow update: if isAdmin();
+
+      allow delete: if isAdmin();
+    }
+
+    // Orders collection
+    match /orders/{orderId} {
+      // User can read their own orders; Admin can read all orders
+      allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+
+      // Customers can create orders if authenticated and not banned
+      allow create: if isAuthenticated() && isNotBanned() && (
+        request.resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+
+      // Only Admin can change order status (processing, delivered, rejected, cancelled)
+      allow update: if isAdmin();
+
+      allow delete: if isAdmin();
+    }
+  }
+}

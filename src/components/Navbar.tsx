@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { SUPPORT_WHATSAPP_LINK, SUPPORT_PHONE_FORMATTED } from '../data/initialData';
-import { Wallet, PlusCircle, User, LogOut, ChevronDown, Gamepad2, ShoppingBag, MessageCircle, LogIn } from 'lucide-react';
+import { Wallet, PlusCircle, User, LogOut, ChevronDown, Gamepad2, ShoppingBag, MessageCircle, LogIn, Shield } from 'lucide-react';
 import { SafeImage } from './SafeImage';
 
 interface NavbarProps {
@@ -154,6 +154,21 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
                 <span className="hidden md:inline">২৪/৭ সাপোর্ট</span>
               </a>
 
+              {/* Admin Panel Quick Link for role === 'admin' */}
+              {currentUser.role === 'admin' && (
+                <button
+                  id="nav-admin-panel-btn"
+                  onClick={() => {
+                    window.location.hash = '#admin';
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-700 text-xs font-extrabold transition-all shadow-xs cursor-pointer shrink-0"
+                  title="এডমিন কন্ট্রোল প্যানেল"
+                >
+                  <Shield className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="hidden md:inline">এডমিন প্যানেল</span>
+                </button>
+              )}
+
               {/* User Account / Profile Dropdown */}
               <div className="relative">
                 <button
@@ -182,6 +197,20 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
                     </div>
 
                     <div className="py-1">
+                      {currentUser.role === 'admin' && (
+                        <button
+                          id="profile-dropdown-admin-panel"
+                          onClick={() => {
+                            window.location.hash = '#admin';
+                            setProfileDropdownOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-amber-900 bg-amber-50 hover:bg-amber-100 rounded-lg text-left font-extrabold cursor-pointer border border-amber-200 mb-1"
+                        >
+                          <Shield className="w-3.5 h-3.5 text-amber-600" />
+                          <span>এডমিন প্যানেলে যান</span>
+                        </button>
+                      )}
+
                       <button
                         id="profile-dropdown-my-profile"
                         onClick={() => {

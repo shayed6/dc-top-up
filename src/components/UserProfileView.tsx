@@ -199,6 +199,19 @@ export const UserProfileView: React.FC = () => {
               <span>প্রোফাইল পরিবর্তন</span>
             </button>
 
+            {currentUser.role === 'admin' && (
+              <button
+                id="profile-admin-panel-cta-btn"
+                onClick={() => {
+                  window.location.hash = '#admin';
+                }}
+                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-400 font-extrabold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer border border-slate-700"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                <span>এডমিন প্যানেলে যান</span>
+              </button>
+            )}
+
             <button
               onClick={logout}
               className="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center gap-1 transition-all cursor-pointer"

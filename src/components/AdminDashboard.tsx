@@ -51,6 +51,8 @@ export const AdminDashboard: React.FC = () => {
   // Reject deposit modal state
   const [rejectingDeposit, setRejectingDeposit] = useState<DepositRequest | null>(null);
   const [rejectReason, setRejectReason] = useState('ভুল TrxID বা অ্যাকাউন্টে কোনো টাকা পাওয়া যায়নি।');
+  const [processingDepositId, setProcessingDepositId] = useState<string | null>(null);
+  const [isCancellingOrder, setIsCancellingOrder] = useState<boolean>(false);
 
   // Product Image change modal state
   const [editingImageProduct, setEditingImageProduct] = useState<TopUpProduct | null>(null);
@@ -518,11 +520,26 @@ export const AdminDashboard: React.FC = () => {
                       <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200">
                         <button
                           id={`approve-btn-${dep.id}`}
-                          onClick={() => approveDeposit(dep.id)}
-                          className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-colors"
+                          disabled={processingDepositId === dep.id}
+                          onClick={async () => {
+                            if (processingDepositId) return;
+                            setProcessingDepositId(dep.id);
+                            try {
+                              await approveDeposit(dep.id);
+                            } finally {
+                              setProcessingDepositId(null);
+                            }
+                          }}
+                          className={`flex-1 md:flex-none px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors ${
+                            processingDepositId === dep.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                          }`}
                         >
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>অ্যাপ্রুভ ও টাকা যোগ করুন</span>
+                          {processingDepositId === dep.id ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4" />
+                          )}
+                          <span>{processingDepositId === dep.id ? 'অনুমোদন হচ্ছে...' : 'অ্যাপ্রুভ ও টাকা যোগ করুন'}</span>
                         </button>
 
                         <button
@@ -2964,14 +2981,27 @@ export const AdminDashboard: React.FC = () => {
             <div className="flex gap-2 pt-2 border-t border-slate-200">
               <button
                 type="button"
+                disabled={isCancellingOrder}
                 onClick={async () => {
-                  await updateOrderStatus(cancellingOrder.id, 'rejected', cancelOrderReason);
-                  setCancellingOrder(null);
+                  if (isCancellingOrder) return;
+                  setIsCancellingOrder(true);
+                  try {
+                    await updateOrderStatus(cancellingOrder.id, 'rejected', cancelOrderReason);
+                    setCancellingOrder(null);
+                  } finally {
+                    setIsCancellingOrder(false);
+                  }
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+                className={`flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-xs flex items-center justify-center gap-1.5 ${
+                  isCancellingOrder ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                }`}
               >
-                <XCircle className="w-4 h-4" />
-                <span>হ্যাঁ, বাতিল ও রিফান্ড সম্পন্ন করুন</span>
+                {isCancellingOrder ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <XCircle className="w-4 h-4" />
+                )}
+                <span>{isCancellingOrder ? 'রিফান্ড ও বাতিল হচ্ছে...' : 'হ্যাঁ, বাতিল ও রিফান্ড সম্পন্ন করুন'}</span>
               </button>
               <button
                 type="button"
