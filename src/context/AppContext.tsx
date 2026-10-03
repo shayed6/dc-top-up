@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { User, DepositRequest, Order, OrderStatus, TopUpProduct, TopUpPackage, PaymentMethodType, AppNotice, HomeBanner } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_NOTICE, INITIAL_BANNERS } from '../data/initialData';
 import { auth, db } from '../firebase';
@@ -794,10 +794,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       let finalDeductedBalance = 0;
 
-      // ATOMIC TRANSACTION:
-      // 1. Read the user's users/{uid} document.
-      // 2. Check walletBalance >= order price. If not enough, abort the transaction entirely.
-      // 3. Atomically create order with status 'pending' AND decrement walletBalance.
+      // STEP 1: Use a transaction ONLY to validate balance and create the order document.
+      // We deliberately do NOT write to userRef inside this transaction.
+      // Reason: The Firestore security rule for orders/{id} create calls isNotBanned() which
+      // internally does get(users/{uid}). If the same transaction also writes to users/{uid},
+      // Firestore's rule evaluator sees a conflict — and rejects with 'Missing or insufficient
+      // permissions', even when balance is sufficient. Fix: write to userRef AFTER commit.
       await runTransaction(db, async (transaction) => {
         const userSnap = await transaction.get(userRef);
         if (!userSnap.exists()) {
@@ -823,11 +825,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           createdAtTimestamp: serverTimestamp()
         });
 
-        // b. Decrement walletBalance by the exact order price immediately
-        transaction.update(userRef, {
-          walletBalance: finalDeductedBalance,
-          savedGameUid: playerId
-        });
+      });
+
+      // STEP 2: Deduct walletBalance in a separate write AFTER the order is committed.
+      // At this point the order already exists in Firestore with status 'pending'.
+      // The users rule allows a non-admin owner to decrement walletBalance (>= 0).
+      await updateDoc(userRef, {
+        walletBalance: finalDeductedBalance,
+        savedGameUid: playerId
       });
 
       // Update local states immediately upon successful commit
